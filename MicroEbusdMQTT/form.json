@@ -1,0 +1,81 @@
+{
+    "elements": [
+        {
+            "type": "Label",
+            "caption": "eBUS-Adapter mit micro-ebusd über MQTT. Eine Instanz pro eBUS-Gerät (circuit). Leeres Gerät = Statuswerte des Adapters."
+        },
+        {
+            "type": "ValidationTextBox",
+            "name": "BaseTopic",
+            "caption": "MQTT-Basis-Topic (wie im Adapter eingetragen)"
+        },
+        {
+            "type": "ValidationTextBox",
+            "name": "Circuit",
+            "caption": "Gerät (circuit), z. B. hmu, ctlv3, vr_71, vwzio, broadcast"
+        },
+        {
+            "type": "CheckBox",
+            "name": "AutoCreate",
+            "caption": "Variablen für alle empfangenen Nachrichten automatisch anlegen"
+        },
+        {
+            "type": "List",
+            "name": "PollMessages",
+            "caption": "Nachrichten, die aktiv abgefragt werden",
+            "rowCount": 8,
+            "add": true,
+            "delete": true,
+            "columns": [
+                {
+                    "caption": "Nachrichtenname (z. B. RunDataFlowTemp)",
+                    "name": "Name",
+                    "width": "auto",
+                    "add": "",
+                    "edit": {
+                        "type": "ValidationTextBox"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "PollInterval",
+            "caption": "Abfrageintervall (0 = aus)",
+            "suffix": "s",
+            "minimum": 0
+        },
+        {
+            "type": "CheckBox",
+            "name": "WriteEnabled",
+            "caption": "Schreiben erlauben (Werte an die Heizung senden)"
+        },
+        {
+            "type": "Select",
+            "name": "PayloadMode",
+            "caption": "Payload-Kodierung zum MQTT-Server",
+            "options": [
+                { "caption": "Automatisch erkennen", "value": 0 },
+                { "caption": "HEX", "value": 1 },
+                { "caption": "Text", "value": 2 }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "type": "Button",
+            "caption": "Nachrichtenliste vom Adapter anfordern",
+            "onClick": "MEBUS_RequestList($id);"
+        },
+        {
+            "type": "Button",
+            "caption": "Jetzt abfragen",
+            "onClick": "MEBUS_PollNow($id);"
+        }
+    ],
+    "status": [
+        { "code": 102, "icon": "active", "caption": "Aktiv" },
+        { "code": 104, "icon": "inactive", "caption": "Inaktiv" },
+        { "code": 201, "icon": "error", "caption": "Kein Basis-Topic angegeben" }
+    ]
+}

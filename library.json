@@ -1,0 +1,12 @@
+{
+    "id": "{83081962-1E7A-4F3A-91D9-67D1699DE21E}",
+    "author": "micro-ebusd MQTT contributors",
+    "name": "micro-ebusd MQTT",
+    "url": "",
+    "compatibility": {
+        "version": "8.1"
+    },
+    "version": "1.0",
+    "build": 1,
+    "date": 1794856107
+}
