@@ -8,7 +8,10 @@ declare(strict_types=1);
  * Bindet den eBUS-Adapter (v5/C6) mit micro-ebusd über den Symcon MQTT Server an.
  * micro-ebusd veröffentlicht jede Nachricht als <Basis>/<circuit>/<name> mit JSON-Payload,
  * z. B. ebusd/hmu/RunDataFlowTemp = {"value":35.56}.
- * Anfragen: <Basis>/<circuit>/<name>/get, .../set (JSON), <Basis>/<circuit>/any/list -> .../found
+ * Anfragen: <Basis>/<circuit>/<name>/get, .../set (JSON), <Basis>/<circuit>/list -> <Basis>/<circuit>/any/found
+ *
+ * vaillant.json: aus john30/ebusd-configuration (src/vaillant) erzeugter Katalog mit
+ * deutschen Namen, Einheiten und Wertelisten (Enums).
  */
 class MicroEbusdMQTT extends IPSModule
 {
@@ -17,6 +20,35 @@ class MicroEbusdMQTT extends IPSModule
 
     private const STATUS_ACTIVE = 102;
     private const STATUS_NO_TOPIC = 201;
+
+    /** Version der Variablen-Metadaten; ältere Einträge werden beim nächsten Wert neu eingerichtet. */
+    private const META_VERSION = 2;
+
+    /** Einheit => [Profil, Nachkommastellen, Suffix] */
+    private const UNIT_PROFILES = [
+        '°C'    => ['~Temperature', 1, ''],
+        'K'     => ['MEBUS.Kelvin', 1, ' K'],
+        '%'     => ['MEBUS.Percent', 0, ' %'],
+        'bar'   => ['MEBUS.Bar', 2, ' bar'],
+        'mbar'  => ['MEBUS.Millibar', 0, ' mbar'],
+        'kW'    => ['MEBUS.kW', 1, ' kW'],
+        'W'     => ['MEBUS.Watt', 0, ' W'],
+        'kWh'   => ['MEBUS.kWh', 1, ' kWh'],
+        'h'     => ['MEBUS.Hours', 0, ' h'],
+        'min'   => ['MEBUS.Minutes', 0, ' min'],
+        's'     => ['MEBUS.Seconds', 0, ' s'],
+        'l/h'   => ['MEBUS.LitersHour', 0, ' l/h'],
+        'l/min' => ['MEBUS.LitersMinute', 2, ' l/min'],
+        'm3/h'  => ['MEBUS.CubicMetersHour', 0, ' m³/h'],
+        'rpm'   => ['MEBUS.RPM', 0, ' U/min'],
+        'rps'   => ['MEBUS.RPS', 1, ' U/s'],
+        'U/s'   => ['MEBUS.RPS', 1, ' U/s'],
+        'Hz'    => ['MEBUS.Hertz', 0, ' Hz'],
+        '°min'  => ['MEBUS.KelvinMinutes', 0, ' °min']
+    ];
+
+    /** @var array|null */
+    private static $catalogCache = null;
 
     public function Create()
     {
@@ -27,6 +59,7 @@ class MicroEbusdMQTT extends IPSModule
         $this->RegisterPropertyString('BaseTopic', 'ebusd');
         $this->RegisterPropertyString('Circuit', 'hmu');
         $this->RegisterPropertyBoolean('AutoCreate', true);
+        $this->RegisterPropertyBoolean('Translate', true);
         $this->RegisterPropertyString('PollMessages', '[]');
         $this->RegisterPropertyInteger('PollInterval', 60);
         $this->RegisterPropertyBoolean('WriteEnabled', false);
@@ -34,8 +67,10 @@ class MicroEbusdMQTT extends IPSModule
 
         // Name => ['write' => bool, 'passive' => bool] aus den "found"-Antworten
         $this->RegisterAttributeString('Messages', '{}');
-        // Ident => ['name' => Nachricht, 'field' => Feld, 'fields' => alle Felder der Nachricht]
+        // Ident => Metadaten der Variable (Nachricht, Feld, Typ, Einheit, Enum, Bezeichnung)
         $this->RegisterAttributeString('IdentMap', '{}');
+        // Enum => [Name => Zahlwert] für die in dieser Instanz benutzten Wertelisten
+        $this->RegisterAttributeString('Enums', '{}');
         // -1 = unbekannt, 0 = Text, 1 = HEX (wie der MQTT Server die Payload liefert)
         $this->RegisterAttributeInteger('DetectedHex', -1);
 
@@ -86,9 +121,10 @@ class MicroEbusdMQTT extends IPSModule
             'add'      => false,
             'delete'   => false,
             'columns'  => [
-                ['caption' => 'Name', 'name' => 'Name', 'width' => 'auto'],
-                ['caption' => 'schreibbar', 'name' => 'Write', 'width' => '110px'],
-                ['caption' => 'passiv', 'name' => 'Passive', 'width' => '90px']
+                ['caption' => 'Name', 'name' => 'Name', 'width' => '300px'],
+                ['caption' => 'Bedeutung', 'name' => 'Meaning', 'width' => 'auto'],
+                ['caption' => 'schreibbar', 'name' => 'Write', 'width' => '100px'],
+                ['caption' => 'passiv', 'name' => 'Passive', 'width' => '80px']
             ],
             'values'   => $values
         ];
@@ -156,11 +192,16 @@ class MicroEbusdMQTT extends IPSModule
         foreach ($fields as $field) {
             $ident = $this->makeIdent($entry['name'], $single ? '' : (string) $field);
             if ($ident === $Ident) {
-                $payload[$field] = $Value;
+                $raw = $Value;
             } else {
                 $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
-                $payload[$field] = ($vid !== false) ? GetValue($vid) : null;
+                $raw = ($vid !== false) ? GetValue($vid) : null;
             }
+            $enum = (string) ($map[$ident]['enum'] ?? '');
+            if ($enum !== '' && $raw !== null) {
+                $raw = $this->enumToName($enum, (int) $raw);
+            }
+            $payload[$field] = $raw;
         }
 
         $this->Set($entry['name'], json_encode($payload));
@@ -213,6 +254,38 @@ class MicroEbusdMQTT extends IPSModule
         $this->Get($Name);
     }
 
+    /**
+     * Richtet alle vorhandenen Variablen neu ein (Name, Typ, Profil) und fordert die Werte neu an.
+     * Selbst vergebene Variablennamen bleiben erhalten.
+     */
+    public function ApplyTranslations()
+    {
+        $map = $this->readJsonAttribute('IdentMap');
+        $names = [];
+        foreach ($map as $ident => $old) {
+            $ident = (string) $ident;
+            $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
+            if ($vid === false || !is_array($old) || !isset($old['name'])) {
+                continue;
+            }
+            $fields = $old['fields'] ?? [$old['field'] ?? 'value'];
+            $single = count($fields) === 1;
+            $info = $this->catalogInfo((string) $old['name']);
+            $entry = $this->buildEntry((string) $old['name'], (string) ($old['field'] ?? 'value'), $fields, $single, GetValue($vid), $info);
+            $newVid = $this->setupVariable($ident, $entry, $vid, $old);
+            if ($newVid !== false) {
+                $map[$ident] = $entry;
+                $names[(string) $old['name']] = true;
+            }
+        }
+        $this->WriteAttributeString('IdentMap', json_encode($map));
+        $this->refreshActions();
+        foreach (array_keys($names) as $name) {
+            $this->Get((string) $name);
+        }
+        echo count($map) . ' Variablen aktualisiert.';
+    }
+
     // ---------------------------------------------------------------------------------------
 
     private function handleMessage(string $name, string $payload)
@@ -238,40 +311,183 @@ class MicroEbusdMQTT extends IPSModule
 
         $wanted = $this->ReadPropertyBoolean('AutoCreate') || in_array($name, $this->pollNames(), true);
         $single = count($fields) === 1;
+        $fieldNames = array_map('strval', array_keys($fields));
+        $lang = $this->lang();
         $map = $this->readJsonAttribute('IdentMap');
         $mapChanged = false;
+        $info = null;
 
         foreach ($fields as $field => $value) {
+            $field = (string) $field;
             $ident = $this->makeIdent($name, $single ? '' : $field);
             $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
+            if ($vid === false && !$wanted) {
+                continue;
+            }
 
-            if ($vid === false) {
-                if (!$wanted) {
-                    continue;
+            $entry = $map[$ident] ?? null;
+            $current = is_array($entry) && ($entry['v'] ?? 0) === self::META_VERSION && ($entry['lang'] ?? '') === $lang;
+            if ($vid === false || !$current) {
+                if ($info === null) {
+                    $info = $this->catalogInfo($name);
                 }
-                $type = $this->variableType($value);
-                $profile = ($type === VARIABLETYPE_FLOAT && stripos($name, 'temp') !== false) ? '~Temperature' : '';
-                $caption = $single ? $name : $name . ' ' . $field;
-                $this->MaintainVariable($ident, $caption, $type, $profile, 0, true);
-                $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
+                $newEntry = $this->buildEntry($name, $field, $fieldNames, $single, $value, $info);
+                $vid = $this->setupVariable($ident, $newEntry, $vid, is_array($entry) ? $entry : null);
                 if ($vid === false) {
                     continue;
                 }
-            }
-
-            $entry = ['name' => $name, 'field' => $field, 'fields' => array_keys($fields)];
-            if (!isset($map[$ident]) || $map[$ident] != $entry) {
+                $entry = $newEntry;
+                $map[$ident] = $entry;
+                $mapChanged = true;
+            } elseif (($entry['fields'] ?? []) !== $fieldNames) {
+                $entry['fields'] = $fieldNames;
                 $map[$ident] = $entry;
                 $mapChanged = true;
             }
 
-            $this->setVariable($vid, $ident, $value);
+            $this->setVariable($vid, $ident, $entry, $value);
         }
 
         if ($mapChanged) {
             $this->WriteAttributeString('IdentMap', json_encode($map));
             $this->refreshActions();
         }
+    }
+
+    /** Ermittelt Typ, Einheit, Werteliste und Bezeichnung einer Variable. */
+    private function buildEntry(string $name, string $field, array $fields, bool $single, $value, array $info): array
+    {
+        $meta = $info['fields'][$field] ?? null;
+        if ($meta === null && $single && count($info['fields']) === 1) {
+            $meta = reset($info['fields']);
+        }
+        $meta = is_array($meta) ? $meta : [];
+
+        $enum = (string) ($meta['e'] ?? '');
+        if ($enum !== '' && !isset($this->catalog()['enums'][$enum])) {
+            $enum = '';
+        }
+        $unit = (string) ($meta['u'] ?? '');
+
+        if ($enum !== '') {
+            $type = VARIABLETYPE_INTEGER;
+            $unit = '';
+        } elseif ($unit !== '' && ($value === null || is_int($value) || is_float($value) || is_numeric($value))) {
+            $type = VARIABLETYPE_FLOAT;
+        } else {
+            $type = $this->variableType($value);
+            if ($type !== VARIABLETYPE_FLOAT) {
+                $unit = '';
+            }
+        }
+
+        $lang = $this->lang();
+        $caption = ($lang === 'de' && $info['de'] !== '') ? $info['de'] : $name;
+        if (!$single) {
+            $fieldCaption = ($lang === 'de') ? (string) ($meta['de'] ?? '') : '';
+            $caption .= ($fieldCaption !== '') ? ' – ' . $fieldCaption : ' ' . $field;
+        }
+
+        return [
+            'v'       => self::META_VERSION,
+            'lang'    => $lang,
+            'name'    => $name,
+            'field'   => $field,
+            'fields'  => $fields,
+            'caption' => $caption,
+            'type'    => $type,
+            'unit'    => $unit,
+            'enum'    => $enum
+        ];
+    }
+
+    /** Legt die Variable an bzw. passt Typ, Profil und (automatisch vergebenen) Namen an. */
+    private function setupVariable(string $ident, array $entry, $oldVid, ?array $oldEntry)
+    {
+        $profile = $this->profileFor($entry);
+        $oldName = ($oldVid !== false) ? IPS_GetName($oldVid) : '';
+
+        $this->MaintainVariable($ident, $entry['caption'], $entry['type'], $profile, 0, true);
+        $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
+        if ($vid === false) {
+            return false;
+        }
+
+        if ($oldVid !== false && $vid === $oldVid && $oldName !== $entry['caption']) {
+            // nur umbenennen, wenn der Name noch der automatisch vergebene ist
+            $autoNames = [$entry['name'], $entry['name'] . ' ' . $entry['field']];
+            if (is_array($oldEntry) && isset($oldEntry['caption'])) {
+                $autoNames[] = (string) $oldEntry['caption'];
+            }
+            if (in_array($oldName, $autoNames, true)) {
+                IPS_SetName($vid, $entry['caption']);
+            }
+        }
+        return $vid;
+    }
+
+    private function profileFor(array $entry): string
+    {
+        if ($entry['enum'] !== '') {
+            return $this->ensureEnumProfile($entry['enum'], $entry['lang']);
+        }
+        if ($entry['unit'] !== '' && isset(self::UNIT_PROFILES[$entry['unit']])) {
+            [$profile, $digits, $suffix] = self::UNIT_PROFILES[$entry['unit']];
+            if ($profile[0] !== '~' && !IPS_VariableProfileExists($profile)) {
+                IPS_CreateVariableProfile($profile, VARIABLETYPE_FLOAT);
+                IPS_SetVariableProfileDigits($profile, $digits);
+                IPS_SetVariableProfileText($profile, '', $suffix);
+            }
+            return $profile;
+        }
+        return '';
+    }
+
+    /** Legt ein Integer-Profil mit den (deutschen) Texten einer Werteliste an. */
+    private function ensureEnumProfile(string $enum, string $lang): string
+    {
+        $items = $this->catalog()['enums'][$enum] ?? [];
+        $profile = 'MEBUS.' . ($lang === 'de' ? '' : 'en.') . $enum;
+        if (!IPS_VariableProfileExists($profile)) {
+            IPS_CreateVariableProfile($profile, VARIABLETYPE_INTEGER);
+        }
+        $lookup = [];
+        foreach ($items as $item) {
+            $text = ($lang === 'de') ? (string) $item['de'] : (string) $item['n'];
+            IPS_SetVariableProfileAssociation($profile, (int) $item['v'], $text, '', -1);
+            $lookup[strtolower((string) $item['n'])] = (int) $item['v'];
+        }
+
+        $enums = $this->readJsonAttribute('Enums');
+        if (($enums[$enum] ?? null) != $lookup) {
+            $enums[$enum] = $lookup;
+            $this->WriteAttributeString('Enums', json_encode($enums));
+        }
+        return $profile;
+    }
+
+    private function enumToInt(string $enum, $value): ?int
+    {
+        if (is_int($value) || is_float($value) || (is_string($value) && is_numeric($value))) {
+            return (int) $value;
+        }
+        if (!is_string($value)) {
+            return null;
+        }
+        $lookup = $this->readJsonAttribute('Enums')[$enum] ?? [];
+        $key = strtolower($value);
+        return isset($lookup[$key]) ? (int) $lookup[$key] : null;
+    }
+
+    /** Zahlwert -> Originalname der Werteliste (für das Schreiben). */
+    private function enumToName(string $enum, int $value)
+    {
+        foreach ($this->catalog()['enums'][$enum] ?? [] as $item) {
+            if ((int) $item['v'] === $value) {
+                return (string) $item['n'];
+            }
+        }
+        return $value;
     }
 
     private function handleFound(string $payload)
@@ -310,10 +526,12 @@ class MicroEbusdMQTT extends IPSModule
     {
         $messages = $this->readJsonAttribute('Messages');
         ksort($messages, SORT_NATURAL | SORT_FLAG_CASE);
+        $catalog = $this->catalog()['messages'];
         $rows = [];
         foreach ($messages as $name => $info) {
             $rows[] = [
                 'Name'    => (string) $name,
+                'Meaning' => (string) ($catalog[strtolower((string) $name)]['de'] ?? ''),
                 'Write'   => !empty($info['write']) ? 'ja' : '',
                 'Passive' => !empty($info['passive']) ? 'ja' : ''
             ];
@@ -346,17 +564,26 @@ class MicroEbusdMQTT extends IPSModule
                 return;
             }
         }
-        $this->setVariable($vid, $ident, $value);
+        $this->setVariable($vid, $ident, null, $value);
     }
 
-    private function setVariable(int $vid, string $ident, $value)
+    private function setVariable(int $vid, string $ident, ?array $entry, $value)
     {
+        $enum = (string) ($entry['enum'] ?? '');
+        if ($enum !== '') {
+            $int = $this->enumToInt($enum, $value);
+            if ($int === null) {
+                $this->SendDebug('Wert', 'Unbekannter Wert "' . (is_scalar($value) ? (string) $value : json_encode($value)) . '" für ' . $ident . ' (' . $enum . ')', 0);
+                return;
+            }
+            $value = $int;
+        }
         if (is_array($value)) {
             $value = json_encode($value);
         }
         switch (IPS_GetVariable($vid)['VariableType']) {
             case VARIABLETYPE_BOOLEAN:
-                $value = is_string($value) ? in_array(strtolower($value), ['1', 'true', 'on', 'ja'], true) : (bool) $value;
+                $value = is_string($value) ? in_array(strtolower($value), ['1', 'true', 'on', 'ja', 'yes'], true) : (bool) $value;
                 break;
             case VARIABLETYPE_INTEGER:
                 $value = (int) $value;
@@ -397,6 +624,45 @@ class MicroEbusdMQTT extends IPSModule
                 $this->DisableAction((string) $ident);
             }
         }
+    }
+
+    /** Katalogeintrag einer Nachricht: deutsche Bezeichnung und Felder (Einheit, Werteliste, Feldname). */
+    private function catalogInfo(string $name): array
+    {
+        $info = ['de' => '', 'fields' => []];
+        $msg = $this->catalog()['messages'][strtolower($name)] ?? null;
+        if (!is_array($msg)) {
+            return $info;
+        }
+        $info['de'] = (string) ($msg['de'] ?? '');
+        $byCircuit = is_array($msg['f'] ?? null) ? $msg['f'] : [];
+        $circuit = strtolower($this->circuit());
+        $list = $byCircuit[$circuit] ?? (count($byCircuit) > 0 ? reset($byCircuit) : []);
+        foreach ((array) $list as $f) {
+            if (is_array($f) && isset($f['n'])) {
+                $info['fields'][(string) $f['n']] = $f;
+            }
+        }
+        return $info;
+    }
+
+    private function catalog(): array
+    {
+        if (self::$catalogCache === null) {
+            $data = json_decode((string) @file_get_contents(__DIR__ . '/vaillant.json'), true);
+            if (!is_array($data)) {
+                $data = [];
+            }
+            $data['messages'] = is_array($data['messages'] ?? null) ? $data['messages'] : [];
+            $data['enums'] = is_array($data['enums'] ?? null) ? $data['enums'] : [];
+            self::$catalogCache = $data;
+        }
+        return self::$catalogCache;
+    }
+
+    private function lang(): string
+    {
+        return $this->ReadPropertyBoolean('Translate') ? 'de' : 'en';
     }
 
     private function publish(string $topic, string $payload)

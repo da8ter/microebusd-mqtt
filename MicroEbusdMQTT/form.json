@@ -20,6 +20,11 @@
             "caption": "Variablen für alle empfangenen Nachrichten automatisch anlegen"
         },
         {
+            "type": "CheckBox",
+            "name": "Translate",
+            "caption": "Deutsche Namen und Statustexte verwenden (Vaillant-Katalog); Einheiten gibt es immer"
+        },
+        {
             "type": "List",
             "name": "PollMessages",
             "caption": "Nachrichten, die aktiv abgefragt werden",
@@ -71,6 +76,11 @@
             "type": "Button",
             "caption": "Jetzt abfragen",
             "onClick": "MEBUS_PollNow($id);"
+        },
+        {
+            "type": "Button",
+            "caption": "Vorhandene Variablen neu einrichten (Namen, Einheiten, Statustexte)",
+            "onClick": "MEBUS_ApplyTranslations($id);"
         }
     ],
     "status": [
