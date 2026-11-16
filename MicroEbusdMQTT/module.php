@@ -76,22 +76,12 @@ class MicroEbusdMQTT extends IPSModule
     public function GetConfigurationForm()
     {
         $form = json_decode((string) file_get_contents(__DIR__ . '/form.json'), true);
-        $messages = $this->readJsonAttribute('Messages');
-        ksort($messages, SORT_NATURAL | SORT_FLAG_CASE);
-
-        $values = [];
-        foreach ($messages as $name => $info) {
-            $values[] = [
-                'Name'    => (string) $name,
-                'Write'   => !empty($info['write']) ? 'ja' : '',
-                'Passive' => !empty($info['passive']) ? 'ja' : ''
-            ];
-        }
+        $values = $this->knownMessageRows();
 
         $form['actions'][] = [
             'type'     => 'List',
             'name'     => 'KnownMessages',
-            'caption'  => 'Bekannte Nachrichten (' . count($values) . ') – per "Nachrichtenliste anfordern" füllen',
+            'caption'  => $this->knownMessagesCaption(count($values)),
             'rowCount' => 12,
             'add'      => false,
             'delete'   => false,
@@ -136,7 +126,7 @@ class MicroEbusdMQTT extends IPSModule
             return '';
         }
 
-        if (count($parts) === 2 && $parts[1] !== '') {
+        if (count($parts) === 2 && $parts[1] !== '' && $parts[1] !== 'list') {
             $this->handleMessage($parts[1], $payload);
         } elseif (count($parts) === 3 && $parts[2] === 'found') {
             $this->handleFound($payload);
@@ -184,8 +174,9 @@ class MicroEbusdMQTT extends IPSModule
             echo 'Für die Adapter-Statusinstanz gibt es keine Nachrichtenliste.';
             return;
         }
-        $this->publish($this->baseTopic() . '/' . $circuit . '/any/list', '');
-        echo 'Anfrage gesendet. Die Liste erscheint nach dem erneuten Öffnen der Instanz.';
+        // laut micro-ebusd-Doku: <Basis>/<circuit>/list, Antwort auf <Basis>/<circuit>/any/found
+        $this->publish($this->baseTopic() . '/' . $circuit . '/list', '');
+        echo 'Anfrage gesendet. Die Liste füllt sich, sobald der Adapter antwortet.';
     }
 
     /** Fragt alle Nachrichten aus der Abfrageliste aktiv ab. */
@@ -306,8 +297,33 @@ class MicroEbusdMQTT extends IPSModule
             ];
         }
         $this->WriteAttributeString('Messages', json_encode($messages));
-        $this->SendDebug('Liste', count($messages) . ' Nachrichten bekannt', 0);
+        $this->SendDebug('Liste', count($data['messages']) . ' empfangen, ' . count($messages) . ' Nachrichten bekannt', 0);
         $this->refreshActions();
+
+        // offenes Formular sofort aktualisieren
+        $rows = $this->knownMessageRows();
+        $this->UpdateFormField('KnownMessages', 'values', json_encode($rows));
+        $this->UpdateFormField('KnownMessages', 'caption', $this->knownMessagesCaption(count($rows)));
+    }
+
+    private function knownMessageRows(): array
+    {
+        $messages = $this->readJsonAttribute('Messages');
+        ksort($messages, SORT_NATURAL | SORT_FLAG_CASE);
+        $rows = [];
+        foreach ($messages as $name => $info) {
+            $rows[] = [
+                'Name'    => (string) $name,
+                'Write'   => !empty($info['write']) ? 'ja' : '',
+                'Passive' => !empty($info['passive']) ? 'ja' : ''
+            ];
+        }
+        return $rows;
+    }
+
+    private function knownMessagesCaption(int $count): string
+    {
+        return 'Bekannte Nachrichten (' . $count . ') – per "Nachrichtenliste anfordern" füllen';
     }
 
     private function handleStatus(string $name, string $payload)

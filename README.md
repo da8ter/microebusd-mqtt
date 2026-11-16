@@ -15,7 +15,7 @@ Topics von micro-ebusd laut https://token.ebusd.eu/mqtt:
 | `<Basis>/<circuit>/<name>` | Wert als JSON, z. B. `{"value":35.56}` |
 | `<Basis>/<circuit>/<name>/get` | Wert anfordern |
 | `<Basis>/<circuit>/<name>/set` | Wert schreiben (JSON-Objekt) |
-| `<Basis>/<circuit>/any/list` | Nachrichtenliste anfordern; die Antwort kommt auf `<Basis>/<circuit>/any/found` |
+| `<Basis>/<circuit>/list` | Nachrichtenliste anfordern; die Antwort kommt auf `<Basis>/<circuit>/any/found` |
 
 ## Installation
 
