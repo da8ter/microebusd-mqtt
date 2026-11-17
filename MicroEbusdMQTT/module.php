@@ -21,7 +21,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
     private const STATUS_NO_TOPIC = 201;
 
     /** Version der Variablen-Metadaten; ältere Einträge werden beim nächsten Wert neu eingerichtet. */
-    private const META_VERSION = 3;
+    private const META_VERSION = 4;
 
     /** Präfix der Variablenprofile, die Version 1.x angelegt hat (werden beim Neu-Einrichten entfernt). */
     private const LEGACY_PROFILE_PREFIX = 'MEBUS.';
@@ -224,7 +224,9 @@ class MicroEbusdMQTT extends IPSModuleStrict
                 $raw = GetValue($vid);
             }
             $enum = (string) ($map[$ident]['enum'] ?? '');
-            if ($enum !== '') {
+            if ($enum !== '' && !empty($map[$ident]['num'])) {
+                $raw = (int) $raw;
+            } elseif ($enum !== '') {
                 $raw = $this->enumToName($enum, (int) $raw);
                 if (!is_string($raw)) {
                     echo sprintf($this->Translate('Not written: %d is not a valid value for field "%s".'), $raw, $field);
@@ -363,6 +365,13 @@ class MicroEbusdMQTT extends IPSModuleStrict
             if ($value === null || preg_match('/^ignore(_\d+)?$/i', $field) === 1) {
                 continue;
             }
+            // Rohbytes ("00 00") in Feldern, die der Katalog nicht kennt, sagen nichts aus.
+            if (is_string($value) && preg_match('/^[0-9a-f]{2}( [0-9a-f]{2})+$/i', $value) === 1) {
+                $info ??= $this->catalogInfo($name);
+                if (!isset($info['fields'][strtolower($field)])) {
+                    continue;
+                }
+            }
             $ident = $this->makeIdent($name, $single ? '' : $field);
             $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
             $exists = is_int($vid) && $vid > 0;
@@ -447,6 +456,8 @@ class MicroEbusdMQTT extends IPSModuleStrict
             'type'    => $type,
             'unit'    => $unit,
             'enum'    => $enum,
+            // Werteliste, die der Adapter als Zahl sendet (0/1): auch als Zahl zurückschreiben
+            'num'     => $enum !== '' && (is_int($value) || is_float($value)),
             // Zahlen ohne Einheit: ganze Zahlen ohne Nachkommastellen, bis ein Kommawert kommt
             'd'       => is_int($value) ? 0 : 2
         ];
