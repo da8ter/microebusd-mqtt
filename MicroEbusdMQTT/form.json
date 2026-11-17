@@ -69,6 +69,11 @@
         },
         {
             "type": "Button",
+            "caption": "Query all known messages once",
+            "onClick": "MEBUS_QueryKnown($id);"
+        },
+        {
+            "type": "Button",
             "caption": "Set up existing variables again (names, units, status texts)",
             "onClick": "MEBUS_ApplyTranslations($id);"
         }

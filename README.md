@@ -53,6 +53,7 @@ Ab Version 1.3 braucht das Modul Symcon 8.1 oder neuer (`IPSModuleStrict`) und n
 MEBUS_Get($id, 'RunDataFlowTemp');                    // einen Wert anfordern
 MEBUS_PollNow($id);                                   // alle Abfrage-Nachrichten anfordern
 MEBUS_RequestList($id);                               // Nachrichtenliste holen
+MEBUS_QueryKnown($id);                                // jede bekannte, aktiv lesbare Nachricht einmal abfragen
 MEBUS_Set($id, 'HwcTempDesired', '{"value":50}');     // schreiben (nur mit Freigabe)
 MEBUS_ApplyTranslations($id);                         // Namen, Einheiten, Statustexte neu setzen
 ```

@@ -277,6 +277,21 @@ class MicroEbusdMQTT extends IPSModuleStrict
         }
     }
 
+    /**
+     * Fragt jede bekannte, aktiv lesbare Nachricht einmal ab. So entstehen die Variablen,
+     * ohne dass die Namen in die Abfrageliste müssen.
+     */
+    public function QueryKnown(): void
+    {
+        $count = 0;
+        foreach ($this->readJsonAttribute('Messages') as $name => $info) {
+            if (empty($info['passive']) && $this->Get((string) $name)) {
+                $count++;
+            }
+        }
+        echo sprintf($this->Translate('%d messages queried. Variables appear as soon as the adapter answers.'), $count);
+    }
+
     /** Fragt alle Nachrichten aus der Abfrageliste aktiv ab. */
     public function PollNow(): void
     {

@@ -12,6 +12,8 @@
             "Allow writing (send values to the heating system)": "Schreiben erlauben (Werte an die Heizung senden)",
             "Request message list from adapter": "Nachrichtenliste vom Adapter anfordern",
             "Query now": "Jetzt abfragen",
+            "Query all known messages once": "Alle bekannten Nachrichten einmal abfragen",
+            "%d messages queried. Variables appear as soon as the adapter answers.": "%d Nachrichten abgefragt. Die Variablen erscheinen, sobald der Adapter antwortet.",
             "Set up existing variables again (names, units, status texts)": "Vorhandene Variablen neu einrichten (Namen, Einheiten, Statustexte)",
             "Active": "Aktiv",
             "Inactive": "Inaktiv",
