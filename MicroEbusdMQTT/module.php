@@ -251,9 +251,30 @@ class MicroEbusdMQTT extends IPSModuleStrict
             echo $this->Translate('The adapter status instance has no message list.');
             return;
         }
-        // laut micro-ebusd-Doku: <Basis>/<circuit>/list, Antwort auf <Basis>/<circuit>/any/found
+        // <Basis>/<circuit>/list liefert nur die erste Seite (rund 20 Einträge, Rest hinter "more",
+        // dessen Abruf nicht dokumentiert ist). Deshalb zusätzlich jede Nachricht, die diese Instanz
+        // schon kennt, einzeln erfragen: <Basis>/<circuit>/<name>/list.
         $this->publish($this->baseTopic() . '/' . $circuit . '/list', '');
-        echo $this->Translate('Request sent. The list fills as soon as the adapter answers.');
+        $names = $this->pollNames();
+        foreach ($this->readJsonAttribute('IdentMap') as $entry) {
+            if (is_array($entry) && isset($entry['name'])) {
+                $names[] = (string) $entry['name'];
+            }
+        }
+        $names = array_values(array_unique($names));
+        foreach ($names as $name) {
+            $this->requestMessageInfo($name);
+        }
+        echo sprintf($this->Translate('Request sent for the device and %d known messages. The list fills as soon as the adapter answers.'), count($names));
+    }
+
+    /** Fragt beim Adapter nach, ob eine einzelne Nachricht schreibbar bzw. passiv ist. */
+    private function requestMessageInfo(string $name): void
+    {
+        $circuit = $this->circuit();
+        if ($circuit !== '' && $name !== '') {
+            $this->publish($this->baseTopic() . '/' . $circuit . '/' . $name . '/list', '');
+        }
     }
 
     /** Fragt alle Nachrichten aus der Abfrageliste aktiv ab. */
@@ -411,6 +432,10 @@ class MicroEbusdMQTT extends IPSModuleStrict
         if ($mapChanged) {
             $this->WriteAttributeString('IdentMap', (string) json_encode($map));
             $this->refreshActions();
+            if ($info !== null && !isset($this->readJsonAttribute('Messages')[$name])) {
+                // neue Nachricht: einmal erfragen, ob sie schreibbar ist
+                $this->requestMessageInfo($name);
+            }
         }
     }
 
@@ -618,6 +643,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
         $this->removeListVariables();
         $messages = $this->readJsonAttribute('Messages');
         $circuit = $this->circuit();
+        $seen = [];
         foreach ($data['messages'] as $msg) {
             if (!is_array($msg) || !isset($msg['name'])) {
                 continue;
@@ -625,10 +651,17 @@ class MicroEbusdMQTT extends IPSModuleStrict
             if (isset($msg['circuit']) && strcasecmp((string) $msg['circuit'], $circuit) !== 0) {
                 continue;
             }
-            $messages[(string) $msg['name']] = [
-                'write'   => !empty($msg['write']),
-                'passive' => !empty($msg['passive'])
+            // Eine Nachricht steht mehrfach in der Liste (lesen/schreiben, aktiv/passiv):
+            // schreibbar, sobald eine Fassung schreibbar ist; passiv nur, wenn es keine aktive gibt.
+            $key = (string) $msg['name'];
+            $seen[$key] = [
+                'write'   => !empty($msg['write']) || !empty($seen[$key]['write']),
+                'passive' => !empty($msg['passive']) && ($seen[$key]['passive'] ?? true)
             ];
+        }
+        foreach ($seen as $key => $flags) {
+            $flags['write'] = $flags['write'] || !empty($messages[$key]['write']);
+            $messages[$key] = $flags;
         }
         $this->WriteAttributeString('Messages', (string) json_encode($messages));
         $this->SendDebug('List', count($data['messages']) . ' received, ' . count($messages) . ' messages known', 0);

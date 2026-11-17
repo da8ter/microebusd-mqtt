@@ -27,7 +27,7 @@
             "Not written: the value of field \"%s\" is unknown. Query the message first.": "Nicht geschrieben: Der Wert des Feldes „%s“ ist unbekannt. Die Nachricht zuerst abfragen.",
             "Not written: %d is not a valid value for field \"%s\".": "Nicht geschrieben: %d ist kein gültiger Wert für das Feld „%s“.",
             "The adapter status instance has no message list.": "Für die Adapter-Statusinstanz gibt es keine Nachrichtenliste.",
-            "Request sent. The list fills as soon as the adapter answers.": "Anfrage gesendet. Die Liste füllt sich, sobald der Adapter antwortet.",
+            "Request sent for the device and %d known messages. The list fills as soon as the adapter answers.": "Anfrage für das Gerät und %d bekannte Nachrichten gesendet. Die Liste füllt sich, sobald der Adapter antwortet.",
             "The payload must be a JSON object, e.g. {\"value\":50}.": "Die Payload muss ein JSON-Objekt sein, z. B. {\"value\":50}.",
             "%d variables updated, %d unused profiles of version 1 removed.": "%d Variablen aktualisiert, %d unbenutzte Profile aus Version 1 entfernt."
         }
