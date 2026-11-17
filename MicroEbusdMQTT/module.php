@@ -261,30 +261,11 @@ class MicroEbusdMQTT extends IPSModuleStrict
             echo $this->Translate('The adapter status instance has no message list.');
             return;
         }
-        // <Basis>/<circuit>/list liefert nur die erste Seite (rund 20 Einträge, Rest hinter "more",
-        // dessen Abruf nicht dokumentiert ist). Deshalb zusätzlich jede Nachricht, die diese Instanz
-        // schon kennt, einzeln erfragen: <Basis>/<circuit>/<name>/list.
+        // Der Adapter liefert die Liste seitenweise (rund 20 Einträge und ein Feld "more").
+        // handleFound() fordert die Folgeseiten an, solange diese Anforderung läuft.
+        $this->SetBuffer('ListPaging', (string) json_encode(['started' => time(), 'seen' => [], 'pages' => 0]));
         $this->publish($this->baseTopic() . '/' . $circuit . '/list', '');
-        $names = $this->pollNames();
-        foreach ($this->readJsonAttribute('IdentMap') as $entry) {
-            if (is_array($entry) && isset($entry['name'])) {
-                $names[] = (string) $entry['name'];
-            }
-        }
-        $names = array_values(array_unique($names));
-        foreach ($names as $name) {
-            $this->requestMessageInfo($name);
-        }
-        echo sprintf($this->Translate('Request sent for the device and %d known messages. The list fills as soon as the adapter answers.'), count($names));
-    }
-
-    /** Fragt beim Adapter nach, ob eine einzelne Nachricht schreibbar bzw. passiv ist. */
-    private function requestMessageInfo(string $name): void
-    {
-        $circuit = $this->circuit();
-        if ($circuit !== '' && $name !== '') {
-            $this->publish($this->baseTopic() . '/' . $circuit . '/' . $name . '/list', '');
-        }
+        echo $this->Translate('Request sent. The list fills page by page as the adapter answers.');
     }
 
     /**
@@ -487,10 +468,6 @@ class MicroEbusdMQTT extends IPSModuleStrict
         if ($mapChanged) {
             $this->WriteAttributeString('IdentMap', (string) json_encode($map));
             $this->refreshActions();
-            if ($info !== null && !isset($this->readJsonAttribute('Messages')[$name])) {
-                // neue Nachricht: einmal erfragen, ob sie schreibbar ist
-                $this->requestMessageInfo($name);
-            }
         }
     }
 
@@ -723,10 +700,36 @@ class MicroEbusdMQTT extends IPSModuleStrict
         $this->SendDebug('List', count($data['messages']) . ' received, ' . count($messages) . ' messages known', 0);
         $this->refreshActions();
 
+        $this->requestNextListPage($data['more'] ?? null, count($seen));
+
         // offenes Formular sofort aktualisieren
         $rows = $this->knownMessageRows();
         $this->UpdateFormField('KnownMessages', 'values', (string) json_encode($rows));
         $this->UpdateFormField('KnownMessages', 'caption', $this->knownMessagesCaption(count($rows)));
+    }
+
+    /**
+     * Fordert die nächste Seite der Nachrichtenliste an. Der Abruf über "more" ist nicht dokumentiert;
+     * gesendet wird der Wert so zurück, wie der Adapter ihn geliefert hat. Abbruch, sobald sich ein
+     * "more"-Wert wiederholt (der Adapter ignoriert die Angabe), nach 100 Seiten oder 2 Minuten.
+     */
+    private function requestNextListPage(mixed $more, int $entries): void
+    {
+        $state = json_decode($this->GetBuffer('ListPaging'), true);
+        if (!is_array($state) || (time() - (int) ($state['started'] ?? 0)) > 120) {
+            return; // keine laufende Anforderung dieser Instanz
+        }
+        $state['pages'] = (int) ($state['pages'] ?? 0) + 1;
+        $done = !is_int($more) || $more === 0 || $entries === 0
+            || in_array($more, $state['seen'] ?? [], true) || $state['pages'] >= 100;
+        if ($done) {
+            $this->SendDebug('List', 'Finished after ' . $state['pages'] . ' page(s), last "more": ' . json_encode($more), 0);
+            $this->SetBuffer('ListPaging', '');
+            return;
+        }
+        $state['seen'][] = $more;
+        $this->SetBuffer('ListPaging', (string) json_encode($state));
+        $this->publish($this->baseTopic() . '/' . $this->circuit() . '/list', (string) json_encode(['more' => $more]));
     }
 
     private function knownMessageRows(): array
