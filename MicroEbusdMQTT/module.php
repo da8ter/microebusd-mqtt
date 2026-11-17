@@ -652,15 +652,16 @@ class MicroEbusdMQTT extends IPSModuleStrict
                 continue;
             }
             // Eine Nachricht steht mehrfach in der Liste (lesen/schreiben, aktiv/passiv):
-            // schreibbar, sobald eine Fassung schreibbar ist; passiv nur, wenn es keine aktive gibt.
+            // schreibbar, sobald eine AKTIVE Fassung schreibbar ist (passiv + schreibbar heißt nur:
+            // ein anderes Gerät schreibt sie, wir können das nicht); passiv, wenn es keine aktive gibt.
             $key = (string) $msg['name'];
+            $passive = !empty($msg['passive']);
             $seen[$key] = [
-                'write'   => !empty($msg['write']) || !empty($seen[$key]['write']),
-                'passive' => !empty($msg['passive']) && ($seen[$key]['passive'] ?? true)
+                'write'   => (!empty($msg['write']) && !$passive) || !empty($seen[$key]['write']),
+                'passive' => $passive && ($seen[$key]['passive'] ?? true)
             ];
         }
         foreach ($seen as $key => $flags) {
-            $flags['write'] = $flags['write'] || !empty($messages[$key]['write']);
             $messages[$key] = $flags;
         }
         $this->WriteAttributeString('Messages', (string) json_encode($messages));
