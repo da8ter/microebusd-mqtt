@@ -1,4 +1,4 @@
-param([string]$Catalog, [string]$Source, [string]$Out)
+﻿param([string]$Catalog, [string]$Source, [string]$Out)
 
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $cat = [System.IO.File]::ReadAllText($Catalog, [System.Text.Encoding]::UTF8) | ConvertFrom-Json

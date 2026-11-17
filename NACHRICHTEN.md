@@ -90,15 +90,15 @@ Felder: Bei Nachrichten mit mehreren Werten steht jedes Feld mit Einheit bzw. We
 | `ConsumptionThisYear10` | Stromverbrauch dieses Jahr, Monat 10 | Monat [–]; Energie [kWh] |
 | `ConsumptionThisYear11` | Stromverbrauch dieses Jahr, Monat 11 | Monat [–]; Energie [kWh] |
 | `ConsumptionThisYear12` | Stromverbrauch dieses Jahr, Monat 12 | Monat [–]; Energie [kWh] |
-| `EnableTestEEVPosition` | TestmenÃ¼ freischalten: Position Expansionsventil |  |
+| `EnableTestEEVPosition` | Testmenü freischalten: Position Expansionsventil |  |
 | `TestEEVPosition` | Position Expansionsventil (Test T.0.21) | % |
-| `EnableTestCompressorExitTemp` | TestmenÃ¼ freischalten: Verdichter-Austrittstemperatur |  |
+| `EnableTestCompressorExitTemp` | Testmenü freischalten: Verdichter-Austrittstemperatur |  |
 | `TestCompressorExitTemp` | Verdichter-Austrittstemperatur (Test T.0.55) | °C |
 | `EnableTestCompressorIntakeTemp` | Testmenü freischalten: Verdichter-Eintrittstemperatur |  |
 | `TestCompressorInletTemp` | Verdichter-Eintrittstemperatur (Test T.0.56) | °C |
-| `EnableTestWaterThroughput` | TestmenÃ¼ freischalten: Heizwasser-Volumenstrom |  |
+| `EnableTestWaterThroughput` | Testmenü freischalten: Heizwasser-Volumenstrom |  |
 | `TestWaterThroughput` | Heizwasser-Volumenstrom (Test T.0.45) | l/h |
-| `EnableTestCompressorSpeed` | TestmenÃ¼ freischalten: Verdichterdrehzahl |  |
+| `EnableTestCompressorSpeed` | Testmenü freischalten: Verdichterdrehzahl |  |
 | `TestCompressorSpeed` | Verdichterdrehzahl (Test T.0.93) | U/s |
 | `TestBuildingPumpPower` | Leistung Heizkreispumpe (Test T.0.01) | % |
 | `TestFan1` | Lüfter 1 (Test T.0.02) | % |
@@ -106,21 +106,21 @@ Felder: Bei Nachrichten mit mehreren Werten steht jedes Feld mit Einheit bzw. We
 | `TestCondensateTrayHeater` | Kondensatwannenheizung (Test T.0.19) | off=Aus, on=Ein |
 | `TestFourWayValve` | 4-Wege-Ventil (Test T.0.20) | off=Aus, on=Ein |
 | `TestHeatingCoilCompressor` | Kurbelwannenheizung Verdichter (Test T.0.23) | off=Aus, on=Ein |
-| `EnableTestFlowTemp` | TestmenÃ¼ freischalten: Vorlauftemperatur |  |
+| `EnableTestFlowTemp` | Testmenü freischalten: Vorlauftemperatur |  |
 | `TestFlowTemp` | Vorlauftemperatur (Test T.0.40) | °C |
-| `EnableTestReturnTemp` | TestmenÃ¼ freischalten: Rücklauftemperatur |  |
+| `EnableTestReturnTemp` | Testmenü freischalten: Rücklauftemperatur |  |
 | `TestReturnTemp` | Rücklauftemperatur (Test T.0.41) | °C |
 | `TestBuildingWaterPress` | Wasserdruck Heizkreis (Test T.0.42) | bar |
 | `TestAirIntakeTemp` | Lufteintrittstemperatur (Test T.0.48) | °C |
 | `TestEEVOutletTemp` | Temperatur nach Expansionsventil (Test T.0.57) | °C |
 | `TestCondensorOutletTemp` | Verflüssiger-Austrittstemperatur (Test T.0.59) | °C |
-| `EnableTestHighPress` | TestmenÃ¼ freischalten: Hochdruck |  |
+| `EnableTestHighPress` | Testmenü freischalten: Hochdruck |  |
 | `TestHighPress` | Hochdruck (Test T.0.63) | bar |
 | `TestLowPress` | Niederdruck (Test T.0.64) | bar |
 | `TestHighPressureSwitch` | Hochdruckschalter (Test T.0.67) | open=offen, close=geschlossen |
-| `EnableTestEvaporationTemp` | TestmenÃ¼ freischalten: Verdampfungstemperatur |  |
+| `EnableTestEvaporationTemp` | Testmenü freischalten: Verdampfungstemperatur |  |
 | `TestEvaporationTemp` | Verdampfungstemperatur (Test T.0.85) | °C |
-| `EnableTestCondensateTemp` | TestmenÃ¼ freischalten: Kondensationstemperatur |  |
+| `EnableTestCondensateTemp` | Testmenü freischalten: Kondensationstemperatur |  |
 | `TestCondensateTemp` | Kondensationstemperatur (Test T.0.86) | °C |
 | `TestOverheatingTargetValue` | Überhitzung Sollwert (Test T.0.87) | K |
 | `TestOverheatingActualValue` | Überhitzung Istwert (Test T.0.88) | K |
@@ -141,7 +141,7 @@ Felder: Bei Nachrichten mit mehreren Werten steht jedes Feld mit Einheit bzw. We
 | `TestMO3Output` | Multifunktionsausgang MA3 (Test T.1.127) | off=Aus, on=Ein |
 | `TestCondensorInletTemp` | Verflüssiger-Eintrittstemperatur (Testmenü) | °C |
 | `TestFlowTempImmersionHeater` | Vorlauftemperatur Heizstab (Test T.1.130) | °C |
-| `EnableTestEEVTemp` | TestmenÃ¼ freischalten: Temperatur Expansionsventil |  |
+| `EnableTestEEVTemp` | Testmenü freischalten: Temperatur Expansionsventil |  |
 | `TestEEVTemp` | Temperatur Expansionsventil (Testmenü) | °C |
 | `EnableiveMonitorMain` | Live-Monitor freischalten |  |
 | `LiveMonitorMain` | Live-Monitor Status | Status [Controller_starting=Regler startet, Standby=Standby, Supply_on=Versorgung ein, Heating_Flow_ok=Heizen: Durchfluss OK, Heating_temperature_self_test=Heizen: T…]; Funktion [Heating=Heizen, Cooling=Kühlen] |
@@ -698,11 +698,11 @@ Felder: Bei Nachrichten mit mehreren Werten steht jedes Feld mit Einheit bzw. We
 | `StatFuelSum` | Brennstoffverbrauch gesamt (Statistik) | kWh |
 | `StatFuelSumHc` | Brennstoffverbrauch Heizen (Statistik) | kWh |
 | `StatFuelSumHwc` | Brennstoffverbrauch Warmwasser (Statistik) | kWh |
-| `EnableTestThreeWayValve` | TestmenÃ¼ freischalten: 3-Wege-Ventil |  |
+| `EnableTestThreeWayValve` | Testmenü freischalten: 3-Wege-Ventil |  |
 | `TestThreeWayValve` | 3-Wege-Ventil (Testmenü) | heating=Heizen, dhw=Warmwasser |
-| `EnableTestHwcTemp` | TestmenÃ¼ freischalten: Warmwassertemperatur |  |
+| `EnableTestHwcTemp` | Testmenü freischalten: Warmwassertemperatur |  |
 | `TestHwcTemp` | Warmwassertemperatur (Testmenü) | °C |
-| `EnableTestOutdoorTemp` | TestmenÃ¼ freischalten: Außentemperatur |  |
+| `EnableTestOutdoorTemp` | Testmenü freischalten: Außentemperatur |  |
 
 ## broadcast: Rundsendungen
 
