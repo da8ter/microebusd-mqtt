@@ -709,9 +709,10 @@ class MicroEbusdMQTT extends IPSModuleStrict
     }
 
     /**
-     * Fordert die nächste Seite der Nachrichtenliste an. Der Abruf über "more" ist nicht dokumentiert;
-     * gesendet wird der Wert so zurück, wie der Adapter ihn geliefert hat. Abbruch, sobald sich ein
-     * "more"-Wert wiederholt (der Adapter ignoriert die Angabe), nach 100 Seiten oder 2 Minuten.
+     * Fordert die nächste Seite der Nachrichtenliste an. Nicht dokumentiert, am Adapter ermittelt
+     * (17.11.2026): Der Wert aus "more" geht als "from" zurück; {"more":…} liefert wieder Seite 1,
+     * die HTTP-Liste kennt denselben Parameter ?from=. Abbruch, sobald sich ein "more"-Wert
+     * wiederholt, nach 100 Seiten oder 2 Minuten.
      */
     private function requestNextListPage(mixed $more, int $entries): void
     {
@@ -729,7 +730,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
         }
         $state['seen'][] = $more;
         $this->SetBuffer('ListPaging', (string) json_encode($state));
-        $this->publish($this->baseTopic() . '/' . $this->circuit() . '/list', (string) json_encode(['more' => $more]));
+        $this->publish($this->baseTopic() . '/' . $this->circuit() . '/list', (string) json_encode(['from' => $more]));
     }
 
     private function knownMessageRows(): array
