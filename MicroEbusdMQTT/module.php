@@ -351,6 +351,11 @@ class MicroEbusdMQTT extends IPSModuleStrict
 
         foreach ($fields as $field => $value) {
             $field = (string) $field;
+            // null = der Adapter hat keinen Wert (Fühler fehlt): alten Stand behalten, nichts anlegen.
+            // "ignore" sind Füllbytes der Definition.
+            if ($value === null || preg_match('/^ignore(_\d+)?$/i', $field) === 1) {
+                continue;
+            }
             $ident = $this->makeIdent($name, $single ? '' : $field);
             $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
             $exists = is_int($vid) && $vid > 0;
@@ -387,7 +392,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
     /** Ermittelt Typ, Einheit, Werteliste und Bezeichnung einer Variable. */
     private function buildEntry(string $name, string $field, array $fields, bool $single, mixed $value, array $info): array
     {
-        $meta = $info['fields'][$field] ?? null;
+        $meta = $info['fields'][strtolower($field)] ?? null; // micro-ebusd schreibt Feldnamen klein
         if ($meta === null && $single && count($info['fields']) === 1) {
             $meta = reset($info['fields']);
         }
@@ -732,7 +737,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
         $list = $byCircuit[$circuit] ?? (count($byCircuit) > 0 ? reset($byCircuit) : []);
         foreach ((array) $list as $f) {
             if (is_array($f) && isset($f['n'])) {
-                $info['fields'][(string) $f['n']] = $f;
+                $info['fields'][strtolower((string) $f['n'])] = $f;
             }
         }
         return $info;
