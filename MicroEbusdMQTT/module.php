@@ -139,12 +139,22 @@ class MicroEbusdMQTT extends IPSModuleStrict
             'add'      => false,
             'delete'   => false,
             'columns'  => [
+                ['caption' => 'Query', 'name' => 'Poll', 'width' => '100px', 'edit' => ['type' => 'CheckBox']],
                 ['caption' => 'Name', 'name' => 'Name', 'width' => '300px'],
                 ['caption' => 'Meaning', 'name' => 'Meaning', 'width' => 'auto'],
                 ['caption' => 'writable', 'name' => 'Write', 'width' => '100px'],
                 ['caption' => 'passive', 'name' => 'Passive', 'width' => '80px']
             ],
             'values'   => $values
+        ];
+        $form['actions'][] = [
+            'type'    => 'Button',
+            'caption' => 'Add checked messages to the query list',
+            'onClick' => [
+                '$names = [];',
+                'foreach ($KnownMessages as $row) { if ($row[\'Poll\']) { $names[] = $row[\'Name\']; } }',
+                'MEBUS_AddToPollList($id, json_encode($names));'
+            ]
         ];
 
         return (string) json_encode($form);
@@ -290,6 +300,36 @@ class MicroEbusdMQTT extends IPSModuleStrict
             }
         }
         echo sprintf($this->Translate('%d messages queried. Variables appear as soon as the adapter answers.'), $count);
+    }
+
+    /**
+     * Trägt Nachrichten in die Abfrageliste des offenen Formulars ein (JSON-Liste von Namen).
+     * Gespeichert wird erst mit "Änderungen übernehmen": Eigenschaften gehören dem Nutzer.
+     */
+    public function AddToPollList(string $Names): void
+    {
+        $wanted = json_decode($Names, true);
+        $messages = $this->readJsonAttribute('Messages');
+        $list = $this->pollNames();
+        $added = 0;
+        $skipped = 0;
+        foreach (is_array($wanted) ? $wanted : [] as $name) {
+            $name = trim((string) $name);
+            if ($name === '' || in_array($name, $list, true)) {
+                continue;
+            }
+            if (!empty($messages[$name]['passive'])) {
+                $skipped++; // rein passive Nachrichten lassen sich nicht abfragen
+                continue;
+            }
+            $list[] = $name;
+            $added++;
+        }
+        if ($added > 0) {
+            $rows = array_map(static fn (string $n): array => ['Name' => $n], $list);
+            $this->UpdateFormField('PollMessages', 'values', (string) json_encode($rows));
+        }
+        echo sprintf($this->Translate('%d messages added to the query list, %d passive ones skipped. Save with "Apply changes".'), $added, $skipped);
     }
 
     /** Fragt alle Nachrichten aus der Abfrageliste aktiv ab. */
@@ -695,9 +735,11 @@ class MicroEbusdMQTT extends IPSModuleStrict
         ksort($messages, SORT_NATURAL | SORT_FLAG_CASE);
         $catalog = $this->catalog()['messages'];
         $yes = $this->Translate('yes');
+        $poll = $this->pollNames();
         $rows = [];
         foreach ($messages as $name => $info) {
             $rows[] = [
+                'Poll'    => in_array((string) $name, $poll, true),
                 'Name'    => (string) $name,
                 'Meaning' => (string) ($catalog[strtolower((string) $name)]['de'] ?? ''),
                 'Write'   => !empty($info['write']) ? $yes : '',
