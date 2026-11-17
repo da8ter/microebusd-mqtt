@@ -49,6 +49,13 @@ class MicroEbusdMQTT extends IPSModuleStrict
         '°min'  => [0, ' °min']
     ];
 
+    /** Statuswerte des Adapters direkt unter dem Basis-Topic: Name => Suffix */
+    private const STATUS_UNITS = [
+        'rssi'   => ' dBm',
+        'uptime' => ' s',
+        'temp'   => ' °C'
+    ];
+
     private static ?array $catalogCache = null;
 
     public function Create(): void
@@ -379,6 +386,13 @@ class MicroEbusdMQTT extends IPSModuleStrict
                 $map[$ident] = $entry;
                 $mapChanged = true;
             }
+            if (($entry['d'] ?? null) === 0 && is_float($value) && floor($value) !== $value) {
+                // bisher nur ganze Zahlen gesehen, jetzt kommt ein Kommawert
+                $entry['d'] = 2;
+                $this->MaintainVariable($ident, IPS_GetName($vid), (int) $entry['type'], $this->presentationFor($entry, (bool) ($entry['w'] ?? false)), 0, true);
+                $map[$ident] = $entry;
+                $mapChanged = true;
+            }
 
             $this->setVariable($ident, $entry, $value);
         }
@@ -432,7 +446,9 @@ class MicroEbusdMQTT extends IPSModuleStrict
             'caption' => $caption,
             'type'    => $type,
             'unit'    => $unit,
-            'enum'    => $enum
+            'enum'    => $enum,
+            // Zahlen ohne Einheit: ganze Zahlen ohne Nachkommastellen, bis ein Kommawert kommt
+            'd'       => is_int($value) ? 0 : 2
         ];
     }
 
@@ -504,7 +520,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
             return ['PRESENTATION' => $writable ? VARIABLE_PRESENTATION_SWITCH : VARIABLE_PRESENTATION_VALUE_PRESENTATION];
         }
 
-        [$digits, $suffix] = self::UNITS[(string) ($entry['unit'] ?? '')] ?? [null, ''];
+        [$digits, $suffix] = self::UNITS[(string) ($entry['unit'] ?? '')] ?? [$entry['d'] ?? null, (string) ($entry['suffix'] ?? '')];
         if ($writable) {
             return ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_INPUT, 'SUFFIX' => $suffix];
         }
@@ -613,7 +629,8 @@ class MicroEbusdMQTT extends IPSModuleStrict
                 return;
             }
             $type = $this->variableType($value);
-            $this->MaintainVariable($ident, 'Adapter ' . $name, $type, $this->presentationFor(['type' => $type], false), 0, true);
+            $look = ['type' => $type, 'suffix' => self::STATUS_UNITS[strtolower($name)] ?? '', 'd' => is_int($value) ? 0 : null];
+            $this->MaintainVariable($ident, 'Adapter ' . $name, $type, $this->presentationFor($look, false), 0, true);
         }
         $this->setVariable($ident, null, $value);
     }
