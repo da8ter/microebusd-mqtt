@@ -2,7 +2,7 @@
     "id": "{A87FD814-7E55-47BB-8216-CC534F21C48D}",
     "name": "MicroEbusdMQTT",
     "type": 3,
-    "vendor": "eBUS",
+    "vendor": "",
     "aliases": [
         "micro-ebusd MQTT Gerät",
         "eBUS Adapter (micro-ebusd)"
