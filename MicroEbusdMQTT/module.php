@@ -180,10 +180,12 @@ class MicroEbusdMQTT extends IPSModuleStrict
             return '';
         }
 
-        if (count($parts) === 2 && $parts[1] !== '' && $parts[1] !== 'list') {
-            $this->handleMessage($parts[1], $payload);
-        } elseif (count($parts) === 3 && $parts[2] === 'found') {
+        // Die Nachrichtenliste kommt je nach Firmware auf .../any/found oder .../any;
+        // deshalb zählt der Inhalt, nicht das Topic.
+        if ($this->isListAnswer($payload)) {
             $this->handleFound($payload);
+        } elseif (count($parts) === 2 && $parts[1] !== '' && $parts[1] !== 'list') {
+            $this->handleMessage($parts[1], $payload);
         }
         // .../get, .../set, .../list sind Anfragen (auch unsere eigenen) und werden ignoriert
 
@@ -570,6 +572,41 @@ class MicroEbusdMQTT extends IPSModuleStrict
         return $value;
     }
 
+    /** Listenantwort: JSON-Objekt mit "messages" als Liste von Einträgen mit "name". */
+    private function isListAnswer(string $payload): bool
+    {
+        if (!str_contains($payload, '"messages"')) {
+            return false;
+        }
+        $data = json_decode($payload, true);
+        if (!is_array($data) || !is_array($data['messages'] ?? null) || !array_is_list($data['messages'])) {
+            return false;
+        }
+        foreach ($data['messages'] as $msg) {
+            if (!is_array($msg) || !isset($msg['name'])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Entfernt Variablen, die frühere Versionen aus einer Listenantwort auf .../any angelegt haben. */
+    private function removeListVariables(): void
+    {
+        $map = $this->readJsonAttribute('IdentMap');
+        $changed = false;
+        foreach (['any_circuit', 'any_name', 'any_messages'] as $ident) {
+            if (isset($map[$ident])) {
+                $this->UnregisterVariable($ident);
+                unset($map[$ident]);
+                $changed = true;
+            }
+        }
+        if ($changed) {
+            $this->WriteAttributeString('IdentMap', (string) json_encode($map));
+        }
+    }
+
     private function handleFound(string $payload): void
     {
         $data = json_decode($payload, true);
@@ -578,6 +615,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
             return;
         }
 
+        $this->removeListVariables();
         $messages = $this->readJsonAttribute('Messages');
         $circuit = $this->circuit();
         foreach ($data['messages'] as $msg) {
