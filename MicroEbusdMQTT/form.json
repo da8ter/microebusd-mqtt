@@ -2,38 +2,38 @@
     "elements": [
         {
             "type": "Label",
-            "caption": "eBUS-Adapter mit micro-ebusd über MQTT. Eine Instanz pro eBUS-Gerät (circuit). Leeres Gerät = Statuswerte des Adapters."
+            "caption": "eBUS adapter with micro-ebusd via MQTT. One instance per eBUS device (circuit). Empty device = status values of the adapter."
         },
         {
             "type": "ValidationTextBox",
             "name": "BaseTopic",
-            "caption": "MQTT-Basis-Topic (wie im Adapter eingetragen)"
+            "caption": "MQTT base topic (as entered in the adapter)"
         },
         {
             "type": "ValidationTextBox",
             "name": "Circuit",
-            "caption": "Gerät (circuit), z. B. hmu, ctlv3, vr_71, vwzio, broadcast"
+            "caption": "Device (circuit), e.g. hmu, ctlv3, vr_71, vwzio, broadcast"
         },
         {
             "type": "CheckBox",
             "name": "AutoCreate",
-            "caption": "Variablen für alle empfangenen Nachrichten automatisch anlegen"
+            "caption": "Create variables for all received messages automatically"
         },
         {
             "type": "CheckBox",
             "name": "Translate",
-            "caption": "Deutsche Namen und Statustexte verwenden (Vaillant-Katalog); Einheiten gibt es immer"
+            "caption": "Use German names and status texts (Vaillant catalog); units are always set"
         },
         {
             "type": "List",
             "name": "PollMessages",
-            "caption": "Nachrichten, die aktiv abgefragt werden",
+            "caption": "Messages that are queried actively",
             "rowCount": 8,
             "add": true,
             "delete": true,
             "columns": [
                 {
-                    "caption": "Nachrichtenname (z. B. RunDataFlowTemp)",
+                    "caption": "Message name (e.g. RunDataFlowTemp)",
                     "name": "Name",
                     "width": "auto",
                     "add": "",
@@ -46,46 +46,36 @@
         {
             "type": "NumberSpinner",
             "name": "PollInterval",
-            "caption": "Abfrageintervall (0 = aus)",
+            "caption": "Query interval (0 = off)",
             "suffix": "s",
             "minimum": 0
         },
         {
             "type": "CheckBox",
             "name": "WriteEnabled",
-            "caption": "Schreiben erlauben (Werte an die Heizung senden)"
-        },
-        {
-            "type": "Select",
-            "name": "PayloadMode",
-            "caption": "Payload-Kodierung zum MQTT-Server",
-            "options": [
-                { "caption": "Automatisch erkennen", "value": 0 },
-                { "caption": "HEX", "value": 1 },
-                { "caption": "Text", "value": 2 }
-            ]
+            "caption": "Allow writing (send values to the heating system)"
         }
     ],
     "actions": [
         {
             "type": "Button",
-            "caption": "Nachrichtenliste vom Adapter anfordern",
+            "caption": "Request message list from adapter",
             "onClick": "MEBUS_RequestList($id);"
         },
         {
             "type": "Button",
-            "caption": "Jetzt abfragen",
+            "caption": "Query now",
             "onClick": "MEBUS_PollNow($id);"
         },
         {
             "type": "Button",
-            "caption": "Vorhandene Variablen neu einrichten (Namen, Einheiten, Statustexte)",
+            "caption": "Set up existing variables again (names, units, status texts)",
             "onClick": "MEBUS_ApplyTranslations($id);"
         }
     ],
     "status": [
-        { "code": 102, "icon": "active", "caption": "Aktiv" },
-        { "code": 104, "icon": "inactive", "caption": "Inaktiv" },
-        { "code": 201, "icon": "error", "caption": "Kein Basis-Topic angegeben" }
+        { "code": 102, "icon": "active", "caption": "Active" },
+        { "code": 104, "icon": "inactive", "caption": "Inactive" },
+        { "code": 201, "icon": "error", "caption": "No base topic given" }
     ]
 }

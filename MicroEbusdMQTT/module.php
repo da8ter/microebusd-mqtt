@@ -13,48 +13,47 @@ declare(strict_types=1);
  * vaillant.json: aus john30/ebusd-configuration (src/vaillant) erzeugter Katalog mit
  * deutschen Namen, Einheiten und Wertelisten (Enums).
  */
-class MicroEbusdMQTT extends IPSModule
+class MicroEbusdMQTT extends IPSModuleStrict
 {
-    private const MQTT_SERVER_MODULE = '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}';
     private const DATA_ID_TX = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}';
 
     private const STATUS_ACTIVE = 102;
     private const STATUS_NO_TOPIC = 201;
 
     /** Version der Variablen-Metadaten; ältere Einträge werden beim nächsten Wert neu eingerichtet. */
-    private const META_VERSION = 2;
+    private const META_VERSION = 3;
 
-    /** Einheit => [Profil, Nachkommastellen, Suffix] */
-    private const UNIT_PROFILES = [
-        '°C'    => ['~Temperature', 1, ''],
-        'K'     => ['MEBUS.Kelvin', 1, ' K'],
-        '%'     => ['MEBUS.Percent', 0, ' %'],
-        'bar'   => ['MEBUS.Bar', 2, ' bar'],
-        'mbar'  => ['MEBUS.Millibar', 0, ' mbar'],
-        'kW'    => ['MEBUS.kW', 1, ' kW'],
-        'W'     => ['MEBUS.Watt', 0, ' W'],
-        'kWh'   => ['MEBUS.kWh', 1, ' kWh'],
-        'h'     => ['MEBUS.Hours', 0, ' h'],
-        'min'   => ['MEBUS.Minutes', 0, ' min'],
-        's'     => ['MEBUS.Seconds', 0, ' s'],
-        'l/h'   => ['MEBUS.LitersHour', 0, ' l/h'],
-        'l/min' => ['MEBUS.LitersMinute', 2, ' l/min'],
-        'm3/h'  => ['MEBUS.CubicMetersHour', 0, ' m³/h'],
-        'rpm'   => ['MEBUS.RPM', 0, ' U/min'],
-        'rps'   => ['MEBUS.RPS', 1, ' U/s'],
-        'U/s'   => ['MEBUS.RPS', 1, ' U/s'],
-        'Hz'    => ['MEBUS.Hertz', 0, ' Hz'],
-        '°min'  => ['MEBUS.KelvinMinutes', 0, ' °min']
+    /** Präfix der Variablenprofile, die Version 1.x angelegt hat (werden beim Neu-Einrichten entfernt). */
+    private const LEGACY_PROFILE_PREFIX = 'MEBUS.';
+
+    /** Einheit => [Nachkommastellen, Suffix] */
+    private const UNITS = [
+        '°C'    => [1, ' °C'],
+        'K'     => [1, ' K'],
+        '%'     => [0, ' %'],
+        'bar'   => [2, ' bar'],
+        'mbar'  => [0, ' mbar'],
+        'kW'    => [1, ' kW'],
+        'W'     => [0, ' W'],
+        'kWh'   => [1, ' kWh'],
+        'h'     => [0, ' h'],
+        'min'   => [0, ' min'],
+        's'     => [0, ' s'],
+        'l/h'   => [0, ' l/h'],
+        'l/min' => [2, ' l/min'],
+        'm3/h'  => [0, ' m³/h'],
+        'rpm'   => [0, ' U/min'],
+        'rps'   => [1, ' U/s'],
+        'U/s'   => [1, ' U/s'],
+        'Hz'    => [0, ' Hz'],
+        '°min'  => [0, ' °min']
     ];
 
-    /** @var array|null */
-    private static $catalogCache = null;
+    private static ?array $catalogCache = null;
 
-    public function Create()
+    public function Create(): void
     {
         parent::Create();
-
-        $this->ConnectParent(self::MQTT_SERVER_MODULE);
 
         $this->RegisterPropertyString('BaseTopic', 'ebusd');
         $this->RegisterPropertyString('Circuit', 'hmu');
@@ -63,23 +62,23 @@ class MicroEbusdMQTT extends IPSModule
         $this->RegisterPropertyString('PollMessages', '[]');
         $this->RegisterPropertyInteger('PollInterval', 60);
         $this->RegisterPropertyBoolean('WriteEnabled', false);
-        $this->RegisterPropertyInteger('PayloadMode', 0);
 
         // Name => ['write' => bool, 'passive' => bool] aus den "found"-Antworten
         $this->RegisterAttributeString('Messages', '{}');
         // Ident => Metadaten der Variable (Nachricht, Feld, Typ, Einheit, Enum, Bezeichnung)
         $this->RegisterAttributeString('IdentMap', '{}');
-        // Enum => [Name => Zahlwert] für die in dieser Instanz benutzten Wertelisten
-        $this->RegisterAttributeString('Enums', '{}');
-        // -1 = unbekannt, 0 = Text, 1 = HEX (wie der MQTT Server die Payload liefert)
-        $this->RegisterAttributeInteger('DetectedHex', -1);
 
         $this->RegisterTimer('Poll', 0, 'MEBUS_PollNow($_IPS[\'TARGET\']);');
     }
 
-    public function ApplyChanges()
+    public function ApplyChanges(): void
     {
         parent::ApplyChanges();
+
+        if (IPS_GetKernelRunlevel() !== KR_READY) {
+            $this->RegisterMessage(0, IPS_KERNELSTARTED);
+            return;
+        }
 
         $base = $this->baseTopic();
         if ($base === '') {
@@ -108,7 +107,19 @@ class MicroEbusdMQTT extends IPSModule
         $this->SetStatus(self::STATUS_ACTIVE);
     }
 
-    public function GetConfigurationForm()
+    public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
+    {
+        if ($Message === IPS_KERNELSTARTED) {
+            $this->ApplyChanges();
+        }
+    }
+
+    public function Destroy(): void
+    {
+        parent::Destroy();
+    }
+
+    public function GetConfigurationForm(): string
     {
         $form = json_decode((string) file_get_contents(__DIR__ . '/form.json'), true);
         $values = $this->knownMessageRows();
@@ -122,17 +133,17 @@ class MicroEbusdMQTT extends IPSModule
             'delete'   => false,
             'columns'  => [
                 ['caption' => 'Name', 'name' => 'Name', 'width' => '300px'],
-                ['caption' => 'Bedeutung', 'name' => 'Meaning', 'width' => 'auto'],
-                ['caption' => 'schreibbar', 'name' => 'Write', 'width' => '100px'],
-                ['caption' => 'passiv', 'name' => 'Passive', 'width' => '80px']
+                ['caption' => 'Meaning', 'name' => 'Meaning', 'width' => 'auto'],
+                ['caption' => 'writable', 'name' => 'Write', 'width' => '100px'],
+                ['caption' => 'passive', 'name' => 'Passive', 'width' => '80px']
             ],
             'values'   => $values
         ];
 
-        return json_encode($form);
+        return (string) json_encode($form);
     }
 
-    public function ReceiveData($JSONString)
+    public function ReceiveData(string $JSONString): string
     {
         $data = json_decode($JSONString, true);
         if (!is_array($data) || !isset($data['Topic'])) {
@@ -141,10 +152,10 @@ class MicroEbusdMQTT extends IPSModule
 
         $topic = (string) $data['Topic'];
         $payload = $this->decodePayload((string) ($data['Payload'] ?? ''));
-        $this->SendDebug('Empfangen', $topic . ' = ' . $payload, 0);
+        $this->SendDebug('Receive', $topic . ' = ' . $payload, 0);
 
         $base = $this->baseTopic() . '/';
-        if ($base === '/' || strpos($topic, $base) !== 0) {
+        if ($base === '/' || !str_starts_with($topic, $base)) {
             return '';
         }
 
@@ -172,56 +183,70 @@ class MicroEbusdMQTT extends IPSModule
         return '';
     }
 
-    public function RequestAction($Ident, $Value)
+    public function RequestAction(string $Ident, mixed $Value): void
     {
-        if (!$this->ReadPropertyBoolean('WriteEnabled')) {
-            throw new Exception('Schreiben ist in dieser Instanz nicht freigegeben.');
+        // Erwartbare Fehlschläge per Ausgabe melden: Symcon macht daraus die Warnung für den Aufrufer.
+        $entry = $this->readJsonAttribute('IdentMap')[$Ident] ?? null;
+        if (!is_array($entry) || !isset($entry['name'])) {
+            echo sprintf($this->Translate('Unknown variable: %s'), $Ident);
+            return;
+        }
+        if (!$this->isWritable((string) $entry['name'])) {
+            echo $this->Translate('Writing is not enabled for this instance or the adapter does not report the message as writable.');
+            return;
         }
 
         $map = $this->readJsonAttribute('IdentMap');
-        if (!isset($map[$Ident])) {
-            throw new Exception('Unbekannte Variable: ' . $Ident);
-        }
-
-        $entry = $map[$Ident];
         $fields = $entry['fields'] ?? [$entry['field']];
         $single = count($fields) === 1;
 
-        // micro-ebusd erwartet beim Schreiben alle Felder der Nachricht als JSON-Objekt
+        // micro-ebusd erwartet beim Schreiben die Felder der Nachricht als JSON-Objekt
         $payload = [];
         foreach ($fields as $field) {
-            $ident = $this->makeIdent($entry['name'], $single ? '' : (string) $field);
+            $field = (string) $field;
+            $ident = $this->makeIdent((string) $entry['name'], $single ? '' : $field);
             if ($ident === $Ident) {
                 $raw = $Value;
             } else {
                 $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
-                $raw = ($vid !== false) ? GetValue($vid) : null;
+                if (!is_int($vid) || $vid <= 0) {
+                    // lieber nicht schreiben als ein Feld mit null überschreiben
+                    echo sprintf($this->Translate('Not written: the value of field "%s" is unknown. Query the message first.'), $field);
+                    return;
+                }
+                $raw = GetValue($vid);
             }
             $enum = (string) ($map[$ident]['enum'] ?? '');
-            if ($enum !== '' && $raw !== null) {
+            if ($enum !== '') {
                 $raw = $this->enumToName($enum, (int) $raw);
+                if (!is_string($raw)) {
+                    echo sprintf($this->Translate('Not written: %d is not a valid value for field "%s".'), $raw, $field);
+                    return;
+                }
+            } elseif (is_float($raw) && floor($raw) === $raw && abs($raw) < 1e9) {
+                $raw = (int) $raw; // 50 statt 50.0
             }
             $payload[$field] = $raw;
         }
 
-        $this->Set($entry['name'], json_encode($payload));
+        $this->Set((string) $entry['name'], (string) json_encode($payload));
     }
 
     /** Fordert die Nachrichtenliste des Geräts an (Antwort kommt auf .../any/found). */
-    public function RequestList()
+    public function RequestList(): void
     {
         $circuit = $this->circuit();
         if ($circuit === '') {
-            echo 'Für die Adapter-Statusinstanz gibt es keine Nachrichtenliste.';
+            echo $this->Translate('The adapter status instance has no message list.');
             return;
         }
         // laut micro-ebusd-Doku: <Basis>/<circuit>/list, Antwort auf <Basis>/<circuit>/any/found
         $this->publish($this->baseTopic() . '/' . $circuit . '/list', '');
-        echo 'Anfrage gesendet. Die Liste füllt sich, sobald der Adapter antwortet.';
+        echo $this->Translate('Request sent. The list fills as soon as the adapter answers.');
     }
 
     /** Fragt alle Nachrichten aus der Abfrageliste aktiv ab. */
-    public function PollNow()
+    public function PollNow(): void
     {
         foreach ($this->pollNames() as $name) {
             $this->Get($name);
@@ -229,66 +254,73 @@ class MicroEbusdMQTT extends IPSModule
     }
 
     /** Fordert eine einzelne Nachricht an, z. B. MEBUS_Get(12345, 'RunDataFlowTemp'). */
-    public function Get(string $Name)
+    public function Get(string $Name): bool
     {
         $circuit = $this->circuit();
         if ($circuit === '' || $Name === '') {
-            return;
+            return false;
         }
-        $this->publish($this->baseTopic() . '/' . $circuit . '/' . $Name . '/get', '');
+        return $this->publish($this->baseTopic() . '/' . $circuit . '/' . $Name . '/get', '');
     }
 
     /** Schreibt eine Nachricht, z. B. MEBUS_Set(12345, 'HwcTempDesired', '{"value":50}'). */
-    public function Set(string $Name, string $JsonPayload)
+    public function Set(string $Name, string $JsonPayload): bool
     {
-        if (!$this->ReadPropertyBoolean('WriteEnabled')) {
-            throw new Exception('Schreiben ist in dieser Instanz nicht freigegeben.');
+        $circuit = $this->circuit();
+        if (!$this->ReadPropertyBoolean('WriteEnabled') || $circuit === '' || $Name === '') {
+            echo $this->Translate('Writing is not enabled for this instance.');
+            return false;
         }
         $decoded = json_decode($JsonPayload, true);
-        if (!is_array($decoded)) {
-            throw new Exception('Die Payload muss ein JSON-Objekt sein, z. B. {"value":50}.');
+        if (!is_array($decoded) || $decoded === [] || array_is_list($decoded)) {
+            echo $this->Translate('The payload must be a JSON object, e.g. {"value":50}.');
+            return false;
         }
-        $circuit = $this->circuit();
-        $this->publish($this->baseTopic() . '/' . $circuit . '/' . $Name . '/set', json_encode($decoded));
+        if (!$this->publish($this->baseTopic() . '/' . $circuit . '/' . $Name . '/set', (string) json_encode($decoded))) {
+            return false;
+        }
         // Neuen Stand gleich wieder abholen
         $this->Get($Name);
+        return true;
     }
 
     /**
-     * Richtet alle vorhandenen Variablen neu ein (Name, Typ, Profil) und fordert die Werte neu an.
+     * Richtet alle vorhandenen Variablen neu ein (Name, Typ, Darstellung) und fordert die Werte neu an.
      * Selbst vergebene Variablennamen bleiben erhalten.
      */
-    public function ApplyTranslations()
+    public function ApplyTranslations(): void
     {
         $map = $this->readJsonAttribute('IdentMap');
         $names = [];
+        $count = 0;
         foreach ($map as $ident => $old) {
             $ident = (string) $ident;
             $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
-            if ($vid === false || !is_array($old) || !isset($old['name'])) {
+            if (!is_int($vid) || $vid <= 0 || !is_array($old) || !isset($old['name'])) {
                 continue;
             }
             $fields = $old['fields'] ?? [$old['field'] ?? 'value'];
             $single = count($fields) === 1;
             $info = $this->catalogInfo((string) $old['name']);
             $entry = $this->buildEntry((string) $old['name'], (string) ($old['field'] ?? 'value'), $fields, $single, GetValue($vid), $info);
-            $newVid = $this->setupVariable($ident, $entry, $vid, $old);
-            if ($newVid !== false) {
+            if ($this->setupVariable($ident, $entry, $vid, $old)) {
                 $map[$ident] = $entry;
                 $names[(string) $old['name']] = true;
+                $count++;
             }
         }
-        $this->WriteAttributeString('IdentMap', json_encode($map));
+        $this->WriteAttributeString('IdentMap', (string) json_encode($map));
         $this->refreshActions();
+        $removed = $this->removeUnusedLegacyProfiles();
         foreach (array_keys($names) as $name) {
             $this->Get((string) $name);
         }
-        echo count($map) . ' Variablen aktualisiert.';
+        echo sprintf($this->Translate('%d variables updated, %d unused profiles of version 1 removed.'), $count, $removed);
     }
 
     // ---------------------------------------------------------------------------------------
 
-    private function handleMessage(string $name, string $payload)
+    private function handleMessage(string $name, string $payload): void
     {
         $decoded = json_decode($payload, true);
         if (is_array($decoded)) {
@@ -321,19 +353,17 @@ class MicroEbusdMQTT extends IPSModule
             $field = (string) $field;
             $ident = $this->makeIdent($name, $single ? '' : $field);
             $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
-            if ($vid === false && !$wanted) {
+            $exists = is_int($vid) && $vid > 0;
+            if (!$exists && !$wanted) {
                 continue;
             }
 
             $entry = $map[$ident] ?? null;
             $current = is_array($entry) && ($entry['v'] ?? 0) === self::META_VERSION && ($entry['lang'] ?? '') === $lang;
-            if ($vid === false || !$current) {
-                if ($info === null) {
-                    $info = $this->catalogInfo($name);
-                }
+            if (!$exists || !$current) {
+                $info ??= $this->catalogInfo($name);
                 $newEntry = $this->buildEntry($name, $field, $fieldNames, $single, $value, $info);
-                $vid = $this->setupVariable($ident, $newEntry, $vid, is_array($entry) ? $entry : null);
-                if ($vid === false) {
+                if (!$this->setupVariable($ident, $newEntry, $exists ? $vid : 0, is_array($entry) ? $entry : null)) {
                     continue;
                 }
                 $entry = $newEntry;
@@ -345,17 +375,17 @@ class MicroEbusdMQTT extends IPSModule
                 $mapChanged = true;
             }
 
-            $this->setVariable($vid, $ident, $entry, $value);
+            $this->setVariable($ident, $entry, $value);
         }
 
         if ($mapChanged) {
-            $this->WriteAttributeString('IdentMap', json_encode($map));
+            $this->WriteAttributeString('IdentMap', (string) json_encode($map));
             $this->refreshActions();
         }
     }
 
     /** Ermittelt Typ, Einheit, Werteliste und Bezeichnung einer Variable. */
-    private function buildEntry(string $name, string $field, array $fields, bool $single, $value, array $info): array
+    private function buildEntry(string $name, string $field, array $fields, bool $single, mixed $value, array $info): array
     {
         $meta = $info['fields'][$field] ?? null;
         if ($meta === null && $single && count($info['fields']) === 1) {
@@ -372,7 +402,7 @@ class MicroEbusdMQTT extends IPSModule
         if ($enum !== '') {
             $type = VARIABLETYPE_INTEGER;
             $unit = '';
-        } elseif ($unit !== '' && ($value === null || is_int($value) || is_float($value) || is_numeric($value))) {
+        } elseif ($unit !== '' && ($value === null || is_numeric($value))) {
             $type = VARIABLETYPE_FLOAT;
         } else {
             $type = $this->variableType($value);
@@ -401,19 +431,19 @@ class MicroEbusdMQTT extends IPSModule
         ];
     }
 
-    /** Legt die Variable an bzw. passt Typ, Profil und (automatisch vergebenen) Namen an. */
-    private function setupVariable(string $ident, array $entry, $oldVid, ?array $oldEntry)
+    /** Legt die Variable an bzw. passt Typ, Darstellung und (automatisch vergebenen) Namen an. */
+    private function setupVariable(string $ident, array $entry, int $oldVid, ?array $oldEntry): bool
     {
-        $profile = $this->profileFor($entry);
-        $oldName = ($oldVid !== false) ? IPS_GetName($oldVid) : '';
+        $oldName = ($oldVid > 0) ? IPS_GetName($oldVid) : '';
 
-        $this->MaintainVariable($ident, $entry['caption'], $entry['type'], $profile, 0, true);
+        // Die Eingabe-Darstellungen setzen eine Aktion voraus; die schaltet erst refreshActions() frei.
+        $this->MaintainVariable($ident, $entry['caption'], $entry['type'], $this->presentationFor($entry, false), 0, true);
         $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
-        if ($vid === false) {
+        if (!is_int($vid) || $vid <= 0) {
             return false;
         }
 
-        if ($oldVid !== false && $vid === $oldVid && $oldName !== $entry['caption']) {
+        if ($oldVid > 0 && $vid === $oldVid && $oldName !== $entry['caption']) {
             // nur umbenennen, wenn der Name noch der automatisch vergebene ist
             $autoNames = [$entry['name'], $entry['name'] . ' ' . $entry['field']];
             if (is_array($oldEntry) && isset($oldEntry['caption'])) {
@@ -423,50 +453,65 @@ class MicroEbusdMQTT extends IPSModule
                 IPS_SetName($vid, $entry['caption']);
             }
         }
-        return $vid;
+        return true;
     }
 
-    private function profileFor(array $entry): string
+    /**
+     * Darstellung einer Variable. Anzeigewerte bekommen die Wertanzeige (Wertelisten als Intervalle,
+     * weil die Kachel-Visu eine Aufzählung ohne Aktion als nackte Zahl zeigt), bedienbare Variablen
+     * die Aufzählung bzw. die Werteingabe.
+     */
+    private function presentationFor(array $entry, bool $writable): array
     {
-        if ($entry['enum'] !== '') {
-            return $this->ensureEnumProfile($entry['enum'], $entry['lang']);
-        }
-        if ($entry['unit'] !== '' && isset(self::UNIT_PROFILES[$entry['unit']])) {
-            [$profile, $digits, $suffix] = self::UNIT_PROFILES[$entry['unit']];
-            if ($profile[0] !== '~' && !IPS_VariableProfileExists($profile)) {
-                IPS_CreateVariableProfile($profile, VARIABLETYPE_FLOAT);
-                IPS_SetVariableProfileDigits($profile, $digits);
-                IPS_SetVariableProfileText($profile, '', $suffix);
+        $enum = (string) ($entry['enum'] ?? '');
+        if ($enum !== '') {
+            $de = ($entry['lang'] ?? 'de') === 'de';
+            $rows = [];
+            foreach ($this->catalog()['enums'][$enum] ?? [] as $item) {
+                $value = (int) $item['v'];
+                $text = $de ? (string) $item['de'] : (string) $item['n'];
+                if ($writable) {
+                    $rows[] = ['Value' => $value, 'Caption' => $text, 'IconActive' => false, 'IconValue' => '', 'Color' => -1];
+                } else {
+                    $rows[] = [
+                        'IntervalMinValue'   => $value,
+                        'IntervalMaxValue'   => $value,
+                        'ConstantActive'     => true,
+                        'ConstantValue'      => $text,
+                        'ConversionFactor'   => 1,
+                        'PrefixActive'       => false, 'PrefixValue' => '',
+                        'SuffixActive'       => false, 'SuffixValue' => '',
+                        'DigitsActive'       => false, 'DigitsValue' => 0,
+                        'IconActive'         => false, 'IconValue' => '',
+                        'ColorActive'        => false, 'ColorValue' => -1,
+                        'ContentColorActive' => false, 'ContentColorValue' => -1
+                    ];
+                }
             }
-            return $profile;
+            $json = (string) json_encode($rows, JSON_UNESCAPED_UNICODE);
+            return $writable
+                ? ['PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION, 'OPTIONS' => $json]
+                : ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'INTERVALS_ACTIVE' => true, 'INTERVALS' => $json];
         }
-        return '';
+
+        $type = (int) ($entry['type'] ?? VARIABLETYPE_STRING);
+        if ($type === VARIABLETYPE_BOOLEAN) {
+            return ['PRESENTATION' => $writable ? VARIABLE_PRESENTATION_SWITCH : VARIABLE_PRESENTATION_VALUE_PRESENTATION];
+        }
+
+        [$digits, $suffix] = self::UNITS[(string) ($entry['unit'] ?? '')] ?? [null, ''];
+        if ($writable) {
+            return ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_INPUT, 'SUFFIX' => $suffix];
+        }
+        $presentation = ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => $suffix];
+        if ($type === VARIABLETYPE_FLOAT && $digits !== null) {
+            $presentation['DIGITS'] = $digits;
+        }
+        return $presentation;
     }
 
-    /** Legt ein Integer-Profil mit den (deutschen) Texten einer Werteliste an. */
-    private function ensureEnumProfile(string $enum, string $lang): string
-    {
-        $items = $this->catalog()['enums'][$enum] ?? [];
-        $profile = 'MEBUS.' . ($lang === 'de' ? '' : 'en.') . $enum;
-        if (!IPS_VariableProfileExists($profile)) {
-            IPS_CreateVariableProfile($profile, VARIABLETYPE_INTEGER);
-        }
-        $lookup = [];
-        foreach ($items as $item) {
-            $text = ($lang === 'de') ? (string) $item['de'] : (string) $item['n'];
-            IPS_SetVariableProfileAssociation($profile, (int) $item['v'], $text, '', -1);
-            $lookup[strtolower((string) $item['n'])] = (int) $item['v'];
-        }
-
-        $enums = $this->readJsonAttribute('Enums');
-        if (($enums[$enum] ?? null) != $lookup) {
-            $enums[$enum] = $lookup;
-            $this->WriteAttributeString('Enums', json_encode($enums));
-        }
-        return $profile;
-    }
-
-    private function enumToInt(string $enum, $value): ?int
+    /** Text oder Zahl der Werteliste -> Zahlwert. */
+    private function enumToInt(string $enum, mixed $value): ?int
     {
         if (is_int($value) || is_float($value) || (is_string($value) && is_numeric($value))) {
             return (int) $value;
@@ -474,13 +519,16 @@ class MicroEbusdMQTT extends IPSModule
         if (!is_string($value)) {
             return null;
         }
-        $lookup = $this->readJsonAttribute('Enums')[$enum] ?? [];
-        $key = strtolower($value);
-        return isset($lookup[$key]) ? (int) $lookup[$key] : null;
+        foreach ($this->catalog()['enums'][$enum] ?? [] as $item) {
+            if (strcasecmp((string) $item['n'], $value) === 0) {
+                return (int) $item['v'];
+            }
+        }
+        return null;
     }
 
     /** Zahlwert -> Originalname der Werteliste (für das Schreiben). */
-    private function enumToName(string $enum, int $value)
+    private function enumToName(string $enum, int $value): string|int
     {
         foreach ($this->catalog()['enums'][$enum] ?? [] as $item) {
             if ((int) $item['v'] === $value) {
@@ -490,11 +538,11 @@ class MicroEbusdMQTT extends IPSModule
         return $value;
     }
 
-    private function handleFound(string $payload)
+    private function handleFound(string $payload): void
     {
         $data = json_decode($payload, true);
         if (!is_array($data) || !isset($data['messages']) || !is_array($data['messages'])) {
-            $this->SendDebug('Liste', 'Unerwartetes Format: ' . $payload, 0);
+            $this->SendDebug('List', 'Unexpected format: ' . $payload, 0);
             return;
         }
 
@@ -512,13 +560,13 @@ class MicroEbusdMQTT extends IPSModule
                 'passive' => !empty($msg['passive'])
             ];
         }
-        $this->WriteAttributeString('Messages', json_encode($messages));
-        $this->SendDebug('Liste', count($data['messages']) . ' empfangen, ' . count($messages) . ' Nachrichten bekannt', 0);
+        $this->WriteAttributeString('Messages', (string) json_encode($messages));
+        $this->SendDebug('List', count($data['messages']) . ' received, ' . count($messages) . ' messages known', 0);
         $this->refreshActions();
 
         // offenes Formular sofort aktualisieren
         $rows = $this->knownMessageRows();
-        $this->UpdateFormField('KnownMessages', 'values', json_encode($rows));
+        $this->UpdateFormField('KnownMessages', 'values', (string) json_encode($rows));
         $this->UpdateFormField('KnownMessages', 'caption', $this->knownMessagesCaption(count($rows)));
     }
 
@@ -527,13 +575,14 @@ class MicroEbusdMQTT extends IPSModule
         $messages = $this->readJsonAttribute('Messages');
         ksort($messages, SORT_NATURAL | SORT_FLAG_CASE);
         $catalog = $this->catalog()['messages'];
+        $yes = $this->Translate('yes');
         $rows = [];
         foreach ($messages as $name => $info) {
             $rows[] = [
                 'Name'    => (string) $name,
                 'Meaning' => (string) ($catalog[strtolower((string) $name)]['de'] ?? ''),
-                'Write'   => !empty($info['write']) ? 'ja' : '',
-                'Passive' => !empty($info['passive']) ? 'ja' : ''
+                'Write'   => !empty($info['write']) ? $yes : '',
+                'Passive' => !empty($info['passive']) ? $yes : ''
             ];
         }
         return $rows;
@@ -541,10 +590,10 @@ class MicroEbusdMQTT extends IPSModule
 
     private function knownMessagesCaption(int $count): string
     {
-        return 'Bekannte Nachrichten (' . $count . ') – per "Nachrichtenliste anfordern" füllen';
+        return sprintf($this->Translate('Known messages (%d) – fill with "Request message list from adapter"'), $count);
     }
 
-    private function handleStatus(string $name, string $payload)
+    private function handleStatus(string $name, string $payload): void
     {
         $decoded = json_decode($payload, true);
         $value = ($decoded === null && $payload !== 'null') ? $payload : $decoded;
@@ -554,26 +603,27 @@ class MicroEbusdMQTT extends IPSModule
 
         $ident = $this->makeIdent('Adapter_' . $name, '');
         $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
-        if ($vid === false) {
+        if (!is_int($vid) || $vid <= 0) {
             if (!$this->ReadPropertyBoolean('AutoCreate')) {
                 return;
             }
-            $this->MaintainVariable($ident, 'Adapter ' . $name, $this->variableType($value), '', 0, true);
-            $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
-            if ($vid === false) {
-                return;
-            }
+            $type = $this->variableType($value);
+            $this->MaintainVariable($ident, 'Adapter ' . $name, $type, $this->presentationFor(['type' => $type], false), 0, true);
         }
-        $this->setVariable($vid, $ident, null, $value);
+        $this->setVariable($ident, null, $value);
     }
 
-    private function setVariable(int $vid, string $ident, ?array $entry, $value)
+    private function setVariable(string $ident, ?array $entry, mixed $value): void
     {
+        $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
+        if (!is_int($vid) || $vid <= 0) {
+            return;
+        }
         $enum = (string) ($entry['enum'] ?? '');
         if ($enum !== '') {
             $int = $this->enumToInt($enum, $value);
             if ($int === null) {
-                $this->SendDebug('Wert', 'Unbekannter Wert "' . (is_scalar($value) ? (string) $value : json_encode($value)) . '" für ' . $ident . ' (' . $enum . ')', 0);
+                $this->SendDebug('Value', 'Unknown value "' . (is_scalar($value) ? (string) $value : json_encode($value)) . '" for ' . $ident . ' (' . $enum . ')', 0);
                 return;
             }
             $value = $int;
@@ -597,7 +647,7 @@ class MicroEbusdMQTT extends IPSModule
         $this->SetValue($ident, $value);
     }
 
-    private function variableType($value): int
+    private function variableType(mixed $value): int
     {
         if (is_bool($value)) {
             return VARIABLETYPE_BOOLEAN;
@@ -608,22 +658,64 @@ class MicroEbusdMQTT extends IPSModule
         return VARIABLETYPE_STRING;
     }
 
-    /** Schaltet die Bedienbarkeit der Variablen passend zu "schreibbar" und WriteEnabled. */
-    private function refreshActions()
+    private function isWritable(string $name): bool
+    {
+        return $this->ReadPropertyBoolean('WriteEnabled') && !empty($this->readJsonAttribute('Messages')[$name]['write']);
+    }
+
+    /** Schaltet Bedienbarkeit und Darstellung der Variablen passend zu "schreibbar" und WriteEnabled. */
+    private function refreshActions(): void
     {
         $write = $this->ReadPropertyBoolean('WriteEnabled');
         $messages = $this->readJsonAttribute('Messages');
-        foreach ($this->readJsonAttribute('IdentMap') as $ident => $entry) {
-            if (@IPS_GetObjectIDByIdent((string) $ident, $this->InstanceID) === false) {
+        $map = $this->readJsonAttribute('IdentMap');
+        $changed = false;
+        foreach ($map as $ident => $entry) {
+            $ident = (string) $ident;
+            $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
+            if (!is_int($vid) || $vid <= 0 || !is_array($entry) || ($entry['v'] ?? 0) !== self::META_VERSION) {
+                continue; // ältere Einträge richtet der nächste Wert neu ein
+            }
+            $writable = $write && !empty($messages[$entry['name'] ?? '']['write']);
+            if ((bool) ($entry['w'] ?? false) === $writable) {
                 continue;
             }
-            $name = $entry['name'] ?? '';
-            if ($write && !empty($messages[$name]['write'])) {
-                $this->EnableAction((string) $ident);
-            } else {
-                $this->DisableAction((string) $ident);
+            // Reihenfolge: Die Eingabe-Darstellungen verlangen eine vorhandene Aktion.
+            if ($writable) {
+                $this->EnableAction($ident);
+            }
+            $this->MaintainVariable($ident, IPS_GetName($vid), (int) $entry['type'], $this->presentationFor($entry, $writable), 0, true);
+            if (!$writable) {
+                $this->DisableAction($ident);
+            }
+            $map[$ident]['w'] = $writable;
+            $changed = true;
+        }
+        if ($changed) {
+            $this->WriteAttributeString('IdentMap', (string) json_encode($map));
+        }
+    }
+
+    /** Entfernt die Variablenprofile aus Version 1.x, die keine Variable mehr benutzt. */
+    private function removeUnusedLegacyProfiles(): int
+    {
+        $profiles = array_filter(IPS_GetVariableProfileList(), static fn ($p) => str_starts_with((string) $p, self::LEGACY_PROFILE_PREFIX));
+        if (count($profiles) === 0) {
+            return 0;
+        }
+        $used = [];
+        foreach (IPS_GetVariableList() as $vid) {
+            $variable = IPS_GetVariable($vid);
+            $used[$variable['VariableProfile']] = true;
+            $used[$variable['VariableCustomProfile']] = true;
+        }
+        $removed = 0;
+        foreach ($profiles as $profile) {
+            if (!isset($used[$profile]) && @IPS_DeleteVariableProfile($profile)) {
+                $removed++;
             }
         }
+        return $removed;
     }
 
     /** Katalogeintrag einer Nachricht: deutsche Bezeichnung und Felder (Einheit, Werteliste, Feldname). */
@@ -665,12 +757,12 @@ class MicroEbusdMQTT extends IPSModule
         return $this->ReadPropertyBoolean('Translate') ? 'de' : 'en';
     }
 
-    private function publish(string $topic, string $payload)
+    private function publish(string $topic, string $payload): bool
     {
-        $this->SendDebug('Senden', $topic . ' = ' . $payload, 0);
+        $this->SendDebug('Send', $topic . ' = ' . $payload, 0);
         if (!$this->HasActiveParent()) {
-            $this->SendDebug('Senden', 'Kein aktiver MQTT Server/Client', 0);
-            return;
+            $this->SendDebug('Send', 'No active MQTT server/client', 0);
+            return false;
         }
         $data = [
             'DataID'           => self::DATA_ID_TX,
@@ -678,74 +770,19 @@ class MicroEbusdMQTT extends IPSModule
             'QualityOfService' => 0,
             'Retain'           => false,
             'Topic'            => $topic,
-            'Payload'          => $this->useHex() ? bin2hex($payload) : $payload
+            'Payload'          => bin2hex($payload) // Datenfluss ist bei IPSModuleStrict HEX-kodiert
         ];
-        $this->SendDataToParent(json_encode($data, JSON_UNESCAPED_SLASHES));
+        $this->SendDataToParent((string) json_encode($data, JSON_UNESCAPED_SLASHES));
+        return true;
     }
 
-    /**
-     * Je nach Symcon-Version liefert der MQTT Server die Payload als HEX oder als Text.
-     * Im Automatikmodus wird das anhand der ersten JSON-Nachricht erkannt und gemerkt.
-     */
+    /** Der Datenfluss liefert die Payload an ein IPSModuleStrict-Kind HEX-kodiert. */
     private function decodePayload(string $raw): string
     {
-        $mode = $this->ReadPropertyInteger('PayloadMode');
-        if ($mode === 2) {
-            return $raw;
-        }
-        if ($mode === 1) {
-            return $this->isHex($raw) ? (string) hex2bin($raw) : $raw;
-        }
-
-        $trim = ltrim($raw);
-        if ($trim !== '' && ($trim[0] === '{' || $trim[0] === '[')) {
-            $this->rememberEncoding(0);
-            return $raw;
-        }
-        if ($this->isHex($raw)) {
-            $bin = (string) hex2bin($raw);
-            $binTrim = ltrim($bin);
-            if ($binTrim !== '' && ($binTrim[0] === '{' || $binTrim[0] === '[')) {
-                $this->rememberEncoding(1);
-                return $bin;
-            }
-            $detected = $this->ReadAttributeInteger('DetectedHex');
-            if ($detected === 1 || ($detected === -1 && $this->isPrintable($bin))) {
-                return $bin;
-            }
+        if ($raw !== '' && strlen($raw) % 2 === 0 && ctype_xdigit($raw)) {
+            return (string) hex2bin($raw);
         }
         return $raw;
-    }
-
-    private function isHex(string $raw): bool
-    {
-        return $raw !== '' && strlen($raw) % 2 === 0 && ctype_xdigit($raw);
-    }
-
-    private function isPrintable(string $s): bool
-    {
-        return $s !== '' && preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', $s) === 0 && mb_check_encoding($s, 'UTF-8');
-    }
-
-    private function rememberEncoding(int $hex)
-    {
-        if ($this->ReadAttributeInteger('DetectedHex') !== $hex) {
-            $this->WriteAttributeInteger('DetectedHex', $hex);
-            $this->SendDebug('Payload', $hex ? 'MQTT Server liefert HEX' : 'MQTT Server liefert Text', 0);
-        }
-    }
-
-    private function useHex(): bool
-    {
-        $mode = $this->ReadPropertyInteger('PayloadMode');
-        if ($mode === 1) {
-            return true;
-        }
-        if ($mode === 2) {
-            return false;
-        }
-        // Automatisch: so senden, wie empfangen wird; Standard HEX (Symcon 8.x)
-        return $this->ReadAttributeInteger('DetectedHex') !== 0;
     }
 
     private function baseTopic(): string
@@ -776,7 +813,7 @@ class MicroEbusdMQTT extends IPSModule
     private function makeIdent(string $name, string $field): string
     {
         $raw = ($field === '') ? $name : $name . '_' . $field;
-        return preg_replace('/[^A-Za-z0-9_]/', '_', $raw);
+        return (string) preg_replace('/[^A-Za-z0-9_]/', '_', $raw);
     }
 
     /** Teil eines Topics für den Empfangsfilter; "/" darf im JSON auch als "\/" stehen. */

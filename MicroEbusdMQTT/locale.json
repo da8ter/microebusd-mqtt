@@ -1,0 +1,35 @@
+{
+    "translations": {
+        "de": {
+            "eBUS adapter with micro-ebusd via MQTT. One instance per eBUS device (circuit). Empty device = status values of the adapter.": "eBUS-Adapter mit micro-ebusd über MQTT. Eine Instanz pro eBUS-Gerät (circuit). Leeres Gerät = Statuswerte des Adapters.",
+            "MQTT base topic (as entered in the adapter)": "MQTT-Basis-Topic (wie im Adapter eingetragen)",
+            "Device (circuit), e.g. hmu, ctlv3, vr_71, vwzio, broadcast": "Gerät (circuit), z. B. hmu, ctlv3, vr_71, vwzio, broadcast",
+            "Create variables for all received messages automatically": "Variablen für alle empfangenen Nachrichten automatisch anlegen",
+            "Use German names and status texts (Vaillant catalog); units are always set": "Deutsche Namen und Statustexte verwenden (Vaillant-Katalog); Einheiten gibt es immer",
+            "Messages that are queried actively": "Nachrichten, die aktiv abgefragt werden",
+            "Message name (e.g. RunDataFlowTemp)": "Nachrichtenname (z. B. RunDataFlowTemp)",
+            "Query interval (0 = off)": "Abfrageintervall (0 = aus)",
+            "Allow writing (send values to the heating system)": "Schreiben erlauben (Werte an die Heizung senden)",
+            "Request message list from adapter": "Nachrichtenliste vom Adapter anfordern",
+            "Query now": "Jetzt abfragen",
+            "Set up existing variables again (names, units, status texts)": "Vorhandene Variablen neu einrichten (Namen, Einheiten, Statustexte)",
+            "Active": "Aktiv",
+            "Inactive": "Inaktiv",
+            "No base topic given": "Kein Basis-Topic angegeben",
+            "Meaning": "Bedeutung",
+            "writable": "schreibbar",
+            "passive": "passiv",
+            "yes": "ja",
+            "Known messages (%d) – fill with \"Request message list from adapter\"": "Bekannte Nachrichten (%d) – per „Nachrichtenliste vom Adapter anfordern“ füllen",
+            "Unknown variable: %s": "Unbekannte Variable: %s",
+            "Writing is not enabled for this instance or the adapter does not report the message as writable.": "Schreiben ist in dieser Instanz nicht freigegeben oder der Adapter meldet die Nachricht nicht als schreibbar.",
+            "Writing is not enabled for this instance.": "Schreiben ist in dieser Instanz nicht freigegeben.",
+            "Not written: the value of field \"%s\" is unknown. Query the message first.": "Nicht geschrieben: Der Wert des Feldes „%s“ ist unbekannt. Die Nachricht zuerst abfragen.",
+            "Not written: %d is not a valid value for field \"%s\".": "Nicht geschrieben: %d ist kein gültiger Wert für das Feld „%s“.",
+            "The adapter status instance has no message list.": "Für die Adapter-Statusinstanz gibt es keine Nachrichtenliste.",
+            "Request sent. The list fills as soon as the adapter answers.": "Anfrage gesendet. Die Liste füllt sich, sobald der Adapter antwortet.",
+            "The payload must be a JSON object, e.g. {\"value\":50}.": "Die Payload muss ein JSON-Objekt sein, z. B. {\"value\":50}.",
+            "%d variables updated, %d unused profiles of version 1 removed.": "%d Variablen aktualisiert, %d unbenutzte Profile aus Version 1 entfernt."
+        }
+    }
+}

@@ -2,11 +2,11 @@
     "id": "{83081962-1E7A-4F3A-91D9-67D1699DE21E}",
     "author": "micro-ebusd MQTT contributors",
     "name": "micro-ebusd MQTT",
-    "url": "",
+    "url": "https://github.com/da8ter/microebusd-mqtt",
     "compatibility": {
         "version": "8.1"
     },
-    "version": "1.2",
-    "build": 3,
-    "date": 1794856107
+    "version": "1.3",
+    "build": 4,
+    "date": 1794904043
 }
