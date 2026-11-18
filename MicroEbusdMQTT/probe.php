@@ -18,6 +18,49 @@ trait MicroEbusdProbe
     private static int $probeAnswerWait = 30;
     /** Als veraltet gilt ein abgefragter Wert nach so vielen Abfrageintervallen ohne Antwort. */
     private static int $staleFactor = 3;
+    /**
+     * Abstand zwischen zwei Abfragen. Am Adapter beobachtet (18.11.2026): Von zehn gleichzeitig
+     * geschickten Abfragen kamen nur die ersten fünf zurück, der Rest wurde ohne Meldung verworfen.
+     */
+    private static int $sendSpacingMs = 1000;
+
+    /** Hängt Abfragen an die Sendeliste an (ohne Doppelte) und startet das Abarbeiten. */
+    private function queueGets(array $names): int
+    {
+        if ($this->circuit() === '') {
+            return 0;
+        }
+        $queue = json_decode($this->GetBuffer('SendQueue'), true);
+        $queue = is_array($queue) ? $queue : [];
+        $added = 0;
+        foreach ($names as $name) {
+            $name = trim((string) $name);
+            if ($name !== '' && !in_array($name, $queue, true)) {
+                $queue[] = $name;
+                $added++;
+            }
+        }
+        $this->SetBuffer('SendQueue', (string) json_encode($queue));
+        if ($queue !== []) {
+            $this->SetTimerInterval('Send', self::$sendSpacingMs);
+        }
+        return $added;
+    }
+
+    /** Schickt die nächste Abfrage der Sendeliste. */
+    private function sendTick(): void
+    {
+        $queue = json_decode($this->GetBuffer('SendQueue'), true);
+        $queue = is_array($queue) ? $queue : [];
+        $name = array_shift($queue);
+        $this->SetBuffer('SendQueue', (string) json_encode($queue));
+        if ($queue === []) {
+            $this->SetTimerInterval('Send', 0);
+        }
+        if (is_string($name)) {
+            $this->Get($name);
+        }
+    }
 
     /** Startet den Prüflauf über alle aktiv lesbaren Nachrichten aus der Liste des Adapters. */
     public function StartProbe(): void
@@ -117,7 +160,8 @@ trait MicroEbusdProbe
             $state['req'][$name] = time();
             $state['next'] = $next + 1;
             $this->SetBuffer('Probe', (string) json_encode($state));
-            $this->Get($name);
+            // über die Sendeliste, damit Prüflauf und Abfragen sich nicht überholen
+            $this->queueGets([$name]);
             if ($state['next'] % 10 === 0) {
                 $this->updateProbeLabel();
             }
@@ -190,15 +234,17 @@ trait MicroEbusdProbe
         $last = json_decode($this->GetBuffer('LastPoll'), true);
         $last = is_array($last) ? $last : [];
         $now = time();
+        $due = [];
         foreach ($this->pollIntervals() as $name => $interval) {
             $every = $interval > 0 ? $interval : $default;
             // eine Sekunde Spiel, damit der Timer-Versatz keine Runde überspringt
             if ($now - (int) ($last[$name] ?? 0) >= $every - 1) {
-                $this->Get($name);
+                $due[] = $name;
                 $last[$name] = $now;
             }
         }
         $this->SetBuffer('LastPoll', (string) json_encode($last));
+        $this->queueGets($due);
     }
 
     /** Name => eigenes Intervall in Sekunden (0 = Intervall der Instanz). */

@@ -84,6 +84,8 @@ class MicroEbusdMQTT extends IPSModuleStrict
         // Der Timer fragt nur ab, was nach seinem eigenen Intervall fällig ist; MEBUS_PollNow fragt alles.
         $this->RegisterTimer('Poll', 0, 'IPS_RequestAction($_IPS[\'TARGET\'], \'PollTick\', 0);');
         $this->RegisterTimer('Probe', 0, 'IPS_RequestAction($_IPS[\'TARGET\'], \'ProbeTick\', 0);');
+        // Abfragen gehen einzeln raus: der Adapter verwirft, was nicht in seine kurze Warteschlange passt.
+        $this->RegisterTimer('Send', 0, 'IPS_RequestAction($_IPS[\'TARGET\'], \'SendTick\', 0);');
     }
 
     public function ApplyChanges(): void
@@ -239,6 +241,10 @@ class MicroEbusdMQTT extends IPSModuleStrict
             $this->probeTick();
             return;
         }
+        if ($Ident === 'SendTick') {
+            $this->sendTick();
+            return;
+        }
         // Erwartbare Fehlschläge per Ausgabe melden: Symcon macht daraus die Warnung für den Aufrufer.
         $entry = $this->readJsonAttribute('IdentMap')[$Ident] ?? null;
         if (!is_array($entry) || !isset($entry['name'])) {
@@ -309,12 +315,13 @@ class MicroEbusdMQTT extends IPSModuleStrict
      */
     public function QueryKnown(): void
     {
-        $count = 0;
+        $names = [];
         foreach ($this->readJsonAttribute('Messages') as $name => $info) {
-            if (empty($info['passive']) && $this->Get((string) $name)) {
-                $count++;
+            if (empty($info['passive'])) {
+                $names[] = (string) $name;
             }
         }
+        $count = $this->queueGets($names);
         echo sprintf($this->Translate('%d messages queried. Variables appear as soon as the adapter answers.'), $count);
     }
 
@@ -349,12 +356,10 @@ class MicroEbusdMQTT extends IPSModuleStrict
         echo sprintf($this->Translate('%d messages added to the query list, %d passive ones skipped. Save with "Apply changes".'), $added, $skipped);
     }
 
-    /** Fragt alle Nachrichten aus der Abfrageliste aktiv ab. */
+    /** Fragt alle Nachrichten aus der Abfrageliste aktiv ab (nacheinander, eine pro Sekunde). */
     public function PollNow(): void
     {
-        foreach ($this->pollNames() as $name) {
-            $this->Get($name);
-        }
+        $this->queueGets($this->pollNames());
     }
 
     /** Fordert eine einzelne Nachricht an, z. B. MEBUS_Get(12345, 'RunDataFlowTemp'). */
@@ -416,9 +421,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
         $this->WriteAttributeString('IdentMap', (string) json_encode($map));
         $this->refreshActions();
         $removed = $this->removeUnusedLegacyProfiles();
-        foreach (array_keys($names) as $name) {
-            $this->Get((string) $name);
-        }
+        $this->queueGets(array_map('strval', array_keys($names)));
         echo sprintf($this->Translate('%d variables updated, %d unused profiles of version 1 removed.'), $count, $removed);
     }
 
