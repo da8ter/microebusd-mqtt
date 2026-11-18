@@ -13,8 +13,12 @@ declare(strict_types=1);
  * vaillant.json: aus john30/ebusd-configuration (src/vaillant) erzeugter Katalog mit
  * deutschen Namen, Einheiten und Wertelisten (Enums).
  */
+require_once __DIR__ . '/probe.php';
+
 class MicroEbusdMQTT extends IPSModuleStrict
 {
+    use MicroEbusdProbe;
+
     private const DATA_ID_TX = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}';
 
     private const STATUS_ACTIVE = 102;
@@ -74,8 +78,12 @@ class MicroEbusdMQTT extends IPSModuleStrict
         $this->RegisterAttributeString('Messages', '{}');
         // Ident => Metadaten der Variable (Nachricht, Feld, Typ, Einheit, Enum, Bezeichnung)
         $this->RegisterAttributeString('IdentMap', '{}');
+        // Name => ['r' => value|null|none, 't' => Zeit der Abfrage] aus dem letzten Prüflauf
+        $this->RegisterAttributeString('ProbeResult', '{}');
 
-        $this->RegisterTimer('Poll', 0, 'MEBUS_PollNow($_IPS[\'TARGET\']);');
+        // Der Timer fragt nur ab, was nach seinem eigenen Intervall fällig ist; MEBUS_PollNow fragt alles.
+        $this->RegisterTimer('Poll', 0, 'IPS_RequestAction($_IPS[\'TARGET\'], \'PollTick\', 0);');
+        $this->RegisterTimer('Probe', 0, 'IPS_RequestAction($_IPS[\'TARGET\'], \'ProbeTick\', 0);');
     }
 
     public function ApplyChanges(): void
@@ -131,6 +139,22 @@ class MicroEbusdMQTT extends IPSModuleStrict
         $form = json_decode((string) file_get_contents(__DIR__ . '/form.json'), true);
         $values = $this->knownMessageRows();
 
+        $form['actions'][] = ['type' => 'Label', 'name' => 'ProbeStatus', 'caption' => $this->probeLabel()];
+        $form['actions'][] = [
+            'type'  => 'RowLayout',
+            'items' => [
+                ['type' => 'Button', 'caption' => 'Start check', 'onClick' => 'MEBUS_StartProbe($id);'],
+                ['type' => 'Button', 'caption' => 'Stop check', 'onClick' => 'MEBUS_StopProbe($id);'],
+                ['type' => 'Button', 'caption' => 'Query list = answering messages', 'onClick' => 'MEBUS_UseProbeResult($id);'],
+                [
+                    'type'    => 'Button',
+                    'caption' => 'Delete variables of messages without answer',
+                    'confirm' => 'Delete all variables of messages that gave no or only an empty answer in the last check? Their archive data is lost.',
+                    'onClick' => 'MEBUS_DeleteSilentVariables($id);'
+                ]
+            ]
+        ];
+
         $form['actions'][] = [
             'type'     => 'List',
             'name'     => 'KnownMessages',
@@ -142,8 +166,11 @@ class MicroEbusdMQTT extends IPSModuleStrict
                 ['caption' => 'Query', 'name' => 'Poll', 'width' => '100px', 'edit' => ['type' => 'CheckBox']],
                 ['caption' => 'Name', 'name' => 'Name', 'width' => '300px'],
                 ['caption' => 'Meaning', 'name' => 'Meaning', 'width' => 'auto'],
-                ['caption' => 'writable', 'name' => 'Write', 'width' => '100px'],
-                ['caption' => 'passive', 'name' => 'Passive', 'width' => '80px']
+                ['caption' => 'writable', 'name' => 'Write', 'width' => '90px'],
+                ['caption' => 'passive', 'name' => 'Passive', 'width' => '70px'],
+                ['caption' => 'Check', 'name' => 'Check', 'width' => '150px'],
+                ['caption' => 'Last value', 'name' => 'LastSeen', 'width' => '120px'],
+                ['caption' => 'State', 'name' => 'State', 'width' => '100px']
             ],
             'values'   => $values
         ];
@@ -204,6 +231,14 @@ class MicroEbusdMQTT extends IPSModuleStrict
 
     public function RequestAction(string $Ident, mixed $Value): void
     {
+        if ($Ident === 'PollTick') {
+            $this->pollTick();
+            return;
+        }
+        if ($Ident === 'ProbeTick') {
+            $this->probeTick();
+            return;
+        }
         // Erwartbare Fehlschläge per Ausgabe melden: Symcon macht daraus die Warnung für den Aufrufer.
         $entry = $this->readJsonAttribute('IdentMap')[$Ident] ?? null;
         if (!is_array($entry) || !isset($entry['name'])) {
@@ -291,6 +326,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
     {
         $wanted = json_decode($Names, true);
         $messages = $this->readJsonAttribute('Messages');
+        $intervals = $this->pollIntervals();
         $list = $this->pollNames();
         $added = 0;
         $skipped = 0;
@@ -307,7 +343,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
             $added++;
         }
         if ($added > 0) {
-            $rows = array_map(static fn (string $n): array => ['Name' => $n], $list);
+            $rows = array_map(static fn (string $n): array => ['Name' => $n, 'Interval' => $intervals[$n] ?? 0], $list);
             $this->UpdateFormField('PollMessages', 'values', (string) json_encode($rows));
         }
         echo sprintf($this->Translate('%d messages added to the query list, %d passive ones skipped. Save with "Apply changes".'), $added, $skipped);
@@ -408,6 +444,14 @@ class MicroEbusdMQTT extends IPSModuleStrict
         if (count($fields) === 0) {
             return;
         }
+        $hasValue = false;
+        foreach ($fields as $key => $value) {
+            if ($value !== null && preg_match('/^ignore(_\d+)?$/i', (string) $key) !== 1) {
+                $hasValue = true;
+                break;
+            }
+        }
+        $this->noteSeen($name, $hasValue);
 
         $wanted = $this->ReadPropertyBoolean('AutoCreate') || in_array($name, $this->pollNames(), true);
         $single = count($fields) === 1;
@@ -702,7 +746,12 @@ class MicroEbusdMQTT extends IPSModuleStrict
 
         $this->requestNextListPage($data['more'] ?? null, count($seen));
 
-        // offenes Formular sofort aktualisieren
+        $this->refreshKnownMessages();
+    }
+
+    /** Offenes Formular sofort aktualisieren. */
+    private function refreshKnownMessages(): void
+    {
         $rows = $this->knownMessageRows();
         $this->UpdateFormField('KnownMessages', 'values', (string) json_encode($rows));
         $this->UpdateFormField('KnownMessages', 'caption', $this->knownMessagesCaption(count($rows)));
@@ -739,16 +788,21 @@ class MicroEbusdMQTT extends IPSModuleStrict
         ksort($messages, SORT_NATURAL | SORT_FLAG_CASE);
         $catalog = $this->catalog()['messages'];
         $yes = $this->Translate('yes');
-        $poll = $this->pollNames();
+        $intervals = $this->pollIntervals();
+        $result = $this->readJsonAttribute('ProbeResult');
+        $seen = $this->seenBuffer();
+        $byName = $this->variablesByName();
+        $default = max(1, $this->ReadPropertyInteger('PollInterval'));
         $rows = [];
         foreach ($messages as $name => $info) {
+            $name = (string) $name;
             $rows[] = [
-                'Poll'    => in_array((string) $name, $poll, true),
-                'Name'    => (string) $name,
-                'Meaning' => (string) ($catalog[strtolower((string) $name)]['de'] ?? ''),
+                'Poll'    => isset($intervals[$name]),
+                'Name'    => $name,
+                'Meaning' => (string) ($catalog[strtolower($name)]['de'] ?? ''),
                 'Write'   => !empty($info['write']) ? $yes : '',
                 'Passive' => !empty($info['passive']) ? $yes : ''
-            ];
+            ] + $this->freshnessColumns($name, $result, $seen, $byName, $intervals, $default);
         }
         return $rows;
     }

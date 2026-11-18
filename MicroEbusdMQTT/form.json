@@ -40,13 +40,44 @@
                     "edit": {
                         "type": "ValidationTextBox"
                     }
+                },
+                {
+                    "caption": "Interval",
+                    "name": "Interval",
+                    "width": "220px",
+                    "add": 0,
+                    "edit": {
+                        "type": "Select",
+                        "options": [
+                            {
+                                "caption": "Standard interval",
+                                "value": 0
+                            },
+                            {
+                                "caption": "10 minutes",
+                                "value": 600
+                            },
+                            {
+                                "caption": "1 hour",
+                                "value": 3600
+                            },
+                            {
+                                "caption": "6 hours",
+                                "value": 21600
+                            },
+                            {
+                                "caption": "1 day",
+                                "value": 86400
+                            }
+                        ]
+                    }
                 }
             ]
         },
         {
             "type": "NumberSpinner",
             "name": "PollInterval",
-            "caption": "Query interval (0 = off)",
+            "caption": "Standard query interval (0 = off)",
             "suffix": "s",
             "minimum": 0
         },
@@ -79,8 +110,20 @@
         }
     ],
     "status": [
-        { "code": 102, "icon": "active", "caption": "Active" },
-        { "code": 104, "icon": "inactive", "caption": "Inactive" },
-        { "code": 201, "icon": "error", "caption": "No base topic given" }
+        {
+            "code": 102,
+            "icon": "active",
+            "caption": "Active"
+        },
+        {
+            "code": 104,
+            "icon": "inactive",
+            "caption": "Inactive"
+        },
+        {
+            "code": 201,
+            "icon": "error",
+            "caption": "No base topic given"
+        }
     ]
 }
