@@ -22,7 +22,7 @@
         {
             "type": "CheckBox",
             "name": "Translate",
-            "caption": "Use German names and status texts (Vaillant catalog); units are always set"
+            "caption": "Add the German meaning in brackets to the variable names and use German status texts (Vaillant catalog); units are always set"
         },
         {
             "type": "List",

@@ -25,7 +25,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
     private const STATUS_NO_TOPIC = 201;
 
     /** Version der Variablen-Metadaten; ältere Einträge werden beim nächsten Wert neu eingerichtet. */
-    private const META_VERSION = 4;
+    private const META_VERSION = 5;
 
     /** Präfix der Variablenprofile, die Version 1.x angelegt hat (werden beim Neu-Einrichten entfernt). */
     private const LEGACY_PROFILE_PREFIX = 'MEBUS.';
@@ -542,11 +542,17 @@ class MicroEbusdMQTT extends IPSModuleStrict
             }
         }
 
+        // Name der Nachricht vorn, die deutsche Bedeutung in Klammern dahinter:
+        // „FlowTemp (Vorlauftemperatur)“; bei mehreren Feldern die des Felds,
+        // „Status01 temp_1 (Rücklauftemperatur)“.
         $lang = $this->lang();
-        $caption = ($lang === 'de' && $info['de'] !== '') ? $info['de'] : $name;
-        if (!$single) {
-            $fieldCaption = ($lang === 'de') ? (string) ($meta['de'] ?? '') : '';
-            $caption .= ($fieldCaption !== '') ? ' – ' . $fieldCaption : ' ' . $field;
+        $caption = $single ? $name : $name . ' ' . $field;
+        if ($lang === 'de') {
+            $fieldCaption = $single ? '' : (string) ($meta['de'] ?? '');
+            $meaning = ($fieldCaption !== '') ? $fieldCaption : (string) $info['de'];
+            if ($meaning !== '') {
+                $caption .= ' (' . $meaning . ')';
+            }
         }
 
         return [

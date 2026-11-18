@@ -5,7 +5,6 @@
             "MQTT base topic (as entered in the adapter)": "MQTT-Basis-Topic (wie im Adapter eingetragen)",
             "Device (circuit), e.g. hmu, ctlv3, vr_71, vwzio, broadcast": "Gerät (circuit), z. B. hmu, ctlv3, vr_71, vwzio, broadcast",
             "Create variables for all received messages automatically": "Variablen für alle empfangenen Nachrichten automatisch anlegen",
-            "Use German names and status texts (Vaillant catalog); units are always set": "Deutsche Namen und Statustexte verwenden (Vaillant-Katalog); Einheiten gibt es immer",
             "Messages that are queried actively": "Nachrichten, die aktiv abgefragt werden",
             "Message name (e.g. RunDataFlowTemp)": "Nachrichtenname (z. B. RunDataFlowTemp)",
             "Allow writing (send values to the heating system)": "Schreiben erlauben (Werte an die Heizung senden)",
@@ -66,7 +65,8 @@
             "%d days ago": "vor %d Tagen",
             "Check running: %d of %d messages queried.": "Prüflauf läuft: %d von %d Nachrichten abgefragt.",
             "No check yet. The check queries every readable message once and records whether a value, an empty answer or nothing comes back.": "Noch kein Prüflauf. Der Prüflauf fragt jede lesbare Nachricht einmal ab und hält fest, ob ein Wert, eine leere Antwort oder nichts zurückkommt.",
-            "Last check %s: %d with value, %d empty, %d without answer.": "Letzter Prüflauf %s: %d mit Wert, %d leer, %d ohne Antwort."
+            "Last check %s: %d with value, %d empty, %d without answer.": "Letzter Prüflauf %s: %d mit Wert, %d leer, %d ohne Antwort.",
+            "Add the German meaning in brackets to the variable names and use German status texts (Vaillant catalog); units are always set": "Deutsche Bedeutung in Klammern hinter den Variablennamen und deutsche Statustexte (Vaillant-Katalog); Einheiten gibt es immer"
         }
     }
 }
