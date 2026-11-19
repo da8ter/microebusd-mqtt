@@ -129,7 +129,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
         $this->SetTimerInterval('Poll', $active ? $interval * 1000 : 0);
 
         $this->refreshActions();
-        $this->maintainHeatingPower($this->ReadPropertyBoolean('HeatingPower') && $this->heatingPowerExists());
+        $this->maintainHeatingPower();
         $this->SetStatus(self::STATUS_ACTIVE);
     }
 

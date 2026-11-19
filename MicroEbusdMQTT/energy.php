@@ -41,10 +41,11 @@ trait MicroEbusdEnergy
         'CopHwcMonth'          => 3600,
         'CurrentConsumedPower' => 0,
         'CurrentYieldPower'    => 0,
-        // Eingangswerte der berechneten Heizleistung
-        'BuildingCircuitFlow'  => 0,
-        'RunDataFlowTemp'      => 0,
-        'RunDataReturnTemp'    => 0
+        // Eingangswerte der berechneten Heizleistung und Leistungszahl
+        'BuildingCircuitFlow'             => 0,
+        'RunDataFlowTemp'                 => 0,
+        'RunDataReturnTemp'               => 0,
+        'RunDataElectricPowerConsumption' => 0
     ];
     private static array $energyController = [
         'PrEnergySumHc'           => 3600,
@@ -120,17 +121,21 @@ trait MicroEbusdEnergy
         return [];
     }
 
-    // ---- Berechnete Heizleistung -----------------------------------------------------------------
+    // ---- Berechnete Heizleistung und momentane Leistungszahl --------------------------------------
 
     private static string $heatingPowerIdent = 'CalcHeatingPower';
-    /** Eingangswerte: je Rolle gilt die erste Nachricht, zu der es eine Variable gibt. */
+    private static string $currentCopIdent = 'CalcCop';
+    /** Eingangswerte: je Rolle gilt die erste Nachricht, zu der es eine Variable gibt (Name => Faktor nach Watt). */
     private static array $heatingPowerInputs = [
-        'flow'   => ['BuildingCircuitFlow'],
-        'supply' => ['RunDataFlowTemp', 'FlowTemp'],
-        'return' => ['RunDataReturnTemp']
+        'flow'     => ['BuildingCircuitFlow' => 1.0],
+        'supply'   => ['RunDataFlowTemp' => 1.0, 'FlowTemp' => 1.0],
+        'return'   => ['RunDataReturnTemp' => 1.0],
+        'electric' => ['RunDataElectricPowerConsumption' => 1.0, 'CurrentConsumedPower' => 1000.0]
     ];
     /** Wärmekapazität von Wasser in Wh je Liter und Kelvin. */
     private static float $waterHeatCapacity = 1.163;
+    /** Unter dieser elektrischen Leistung (Watt) steht der Verdichter; eine Leistungszahl wäre dann Unsinn. */
+    private static float $copMinElectricPower = 100.0;
 
     /**
      * Heizleistung in Watt = Volumenstrom (l/h) × 1,163 × (Vorlauf − Rücklauf). Die Wärmepumpe meldet
@@ -138,54 +143,86 @@ trait MicroEbusdEnergy
      * im Betrieb auf 0 stehen (gemessen 19.11.2026). Gerechnet wird bei jedem neuen Eingangswert mit
      * den jeweils letzten Werten; ist einer davon veraltet, bleibt der alte Stand stehen. Beim
      * Abtauen ist der Wert negativ.
+     *
+     * Die momentane Leistungszahl ist Heizleistung durch elektrische Leistungsaufnahme. Steht der
+     * Verdichter (unter 100 W) oder ist die Heizleistung nicht positiv, ist sie 0.
      */
     private function updateHeatingPower(string $name): void
     {
-        if (!$this->ReadPropertyBoolean('HeatingPower') || !in_array($name, array_merge(...array_values(self::$heatingPowerInputs)), true)) {
+        if (!$this->ReadPropertyBoolean('HeatingPower')) {
             return;
         }
+        $isInput = false;
+        foreach (self::$heatingPowerInputs as $names) {
+            $isInput = $isInput || isset($names[$name]);
+        }
+        if (!$isInput) {
+            return;
+        }
+
+        $values = $this->heatingPowerValues();
+        if (!isset($values['flow'], $values['supply'], $values['return'])) {
+            return; // ein Eingangswert fehlt (noch) oder ist veraltet
+        }
+        // + 0.0: aus -0.0 (Volumenstrom 0 bei negativer Spreizung) wird 0.0
+        $power = round($values['flow'] * self::$waterHeatCapacity * ($values['supply'] - $values['return'])) + 0.0;
+        $this->maintainCalculated(self::$heatingPowerIdent, true);
+        $this->SetValue(self::$heatingPowerIdent, $power);
+
+        if (!isset($values['electric'])) {
+            return; // ohne frische elektrische Leistung bleibt die Leistungszahl stehen
+        }
+        $cop = ($values['electric'] >= self::$copMinElectricPower && $power > 0) ? round($power / $values['electric'], 2) : 0.0;
+        $this->maintainCalculated(self::$currentCopIdent, true);
+        $this->SetValue(self::$currentCopIdent, $cop);
+    }
+
+    /** Letzte Eingangswerte je Rolle in Watt bzw. l/h und °C; veraltete und fehlende fehlen im Ergebnis. */
+    private function heatingPowerValues(): array
+    {
         $intervals = $this->pollIntervals();
         $default = max(60, $this->ReadPropertyInteger('PollInterval'));
         $now = time();
         $values = [];
         foreach (self::$heatingPowerInputs as $role => $names) {
-            foreach ($names as $candidate) {
+            foreach ($names as $candidate => $factor) {
                 $vid = @IPS_GetObjectIDByIdent($this->makeIdent($candidate, ''), $this->InstanceID);
                 if (!is_int($vid) || $vid <= 0) {
                     continue;
                 }
                 $every = (($intervals[$candidate] ?? 0) > 0) ? $intervals[$candidate] : $default;
-                if ($now - (int) IPS_GetVariable($vid)['VariableUpdated'] > 3 * $every) {
-                    return; // veraltet
+                if ($now - (int) IPS_GetVariable($vid)['VariableUpdated'] <= 3 * $every) {
+                    $values[$role] = (float) GetValue($vid) * $factor;
                 }
-                $values[$role] = (float) GetValue($vid);
-                break;
-            }
-            if (!isset($values[$role])) {
-                return; // Eingangswert fehlt (noch)
+                break; // die erste vorhandene Variable gilt, auch wenn sie veraltet ist
             }
         }
-        $this->maintainHeatingPower(true);
-        // + 0.0: aus -0.0 (Volumenstrom 0 bei negativer Spreizung) wird 0.0
-        $this->SetValue(self::$heatingPowerIdent, round($values['flow'] * self::$waterHeatCapacity * ($values['supply'] - $values['return'])) + 0.0);
+        return $values;
     }
 
-    private function heatingPowerExists(): bool
+    /** Entfernt die berechneten Variablen, wenn die Berechnung abgeschaltet ist. */
+    private function maintainHeatingPower(): void
     {
-        $vid = @IPS_GetObjectIDByIdent(self::$heatingPowerIdent, $this->InstanceID);
-        return is_int($vid) && $vid > 0;
+        if (!$this->ReadPropertyBoolean('HeatingPower')) {
+            $this->maintainCalculated(self::$heatingPowerIdent, false);
+            $this->maintainCalculated(self::$currentCopIdent, false);
+        }
     }
 
-    /** Legt die Variable an bzw. entfernt sie, wenn die Berechnung abgeschaltet ist. */
-    private function maintainHeatingPower(bool $keep): void
+    /** Legt eine berechnete Variable an bzw. entfernt sie. */
+    private function maintainCalculated(string $ident, bool $keep): void
     {
-        if ($keep === $this->heatingPowerExists()) {
+        $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
+        if ($keep === (is_int($vid) && $vid > 0)) {
             return;
         }
-        $this->MaintainVariable(self::$heatingPowerIdent, $this->Translate('Heating power (calculated)'), VARIABLETYPE_FLOAT, [
+        [$caption, $suffix, $digits] = ($ident === self::$currentCopIdent)
+            ? ['Current COP (calculated)', '', 1]
+            : ['Heating power (calculated)', ' W', 0];
+        $this->MaintainVariable($ident, $this->Translate($caption), VARIABLETYPE_FLOAT, [
             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'SUFFIX'       => ' W',
-            'DIGITS'       => 0
+            'SUFFIX'       => $suffix,
+            'DIGITS'       => $digits
         ], 0, $keep);
     }
 }

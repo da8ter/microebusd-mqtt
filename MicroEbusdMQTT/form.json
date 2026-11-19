@@ -94,7 +94,7 @@
         {
             "type": "CheckBox",
             "name": "HeatingPower",
-            "caption": "Calculate the heating power from volume flow and temperature spread (heat pump)"
+            "caption": "Calculate heating power and current COP from volume flow and temperature spread (heat pump)"
         }
     ],
     "actions": [
