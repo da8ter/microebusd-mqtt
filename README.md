@@ -8,6 +8,7 @@ Dieses Symcon-Modul bindet den **eBUS Adapter Shield (v5/C6) mit micro-ebusd** �
 - **Deutsche Namen, Einheiten und Statustexte:** Das Modul bringt einen Katalog der Vaillant-Definitionen mit (`MicroEbusdMQTT/vaillant.json`, 630 Nachrichten für hmu, ctlv3, vr_71, vwzio, broadcast). Die Variablen heißen wie die Nachricht, dahinter steht die deutsche Bedeutung in Klammern, z. B. „FlowTemp (Vorlauftemperatur)“ oder „Status01 temp_1 (Rücklauftemperatur)“; dazu kommen die Einheiten (°C, kW, kWh, bar, h …). Wertelisten wie Betriebsarten oder Statuscodes werden zu Integer-Variablen mit deutschen Texten, z. B. Aus / Zeitgesteuert / Manuell. Das Modul nutzt dafür Darstellungen, keine Variablenprofile. Die Übersicht aller Nachrichten steht in [NACHRICHTEN.md](NACHRICHTEN.md).
 - Nachrichten aus der Liste „aktiv abfragen“ werden im eingestellten Intervall per `…/get` angefordert, **eine pro Sekunde**: Der Adapter verwirft ohne Meldung, was nicht in seine kurze Warteschlange passt (beobachtet: von zehn gleichzeitigen Abfragen kamen nur fünf zurück). Bei vielen Nachrichten das Intervall deshalb nicht kürzer wählen als ihre Anzahl in Sekunden.
 - Schreiben ist nur möglich, wenn „Schreiben erlauben“ an ist und der Adapter die Nachricht als schreibbar meldet. Dafür vorher „Nachrichtenliste anfordern“ drücken. Bei Nachrichten mit mehreren Feldern schickt das Modul alle Felder mit den zuletzt empfangenen Werten zurück; fehlt einer, schreibt es nicht.
+- **Adresse des Adapters (optional):** Ist sie eingetragen, liest das Modul Einheit, Grenzen und Schrittweite je Feld direkt vom Adapter (HTTP, `…/get?from=0`, also ohne Busverkehr), einmal je Nachricht beim Anlegen der Variable. Die Einheit des Adapters geht dem Katalog vor und gilt auch für Nachrichten, die der Katalog nicht kennt. Beim Schreiben lehnt das Modul Werte außerhalb der Grenzen ab. Für vorhandene Variablen „Vorhandene Variablen neu einrichten“ drücken. Antwortet der Adapter nicht, gilt der Katalog, und das Modul versucht es erst nach fünf Minuten wieder. Wertelisten und deutsche Namen kommen weiter aus dem Katalog.
 
 Topics von micro-ebusd laut https://token.ebusd.eu/mqtt:
 
@@ -68,8 +69,9 @@ MEBUS_QueryKnown($id);                                // jede bekannte, aktiv le
 MEBUS_StartProbe($id);                                // Prüflauf: jede lesbare Nachricht abfragen und Antwort festhalten
 MEBUS_Set($id, 'HwcTempDesired', '{"value":50}');     // schreiben (nur mit Freigabe)
 MEBUS_ApplyTranslations($id);                         // Namen, Einheiten, Statustexte neu setzen
+MEBUS_CheckAdapter($id);                              // prüft, ob der Adapter unter der eingetragenen Adresse antwortet
 ```
 
 Bei Wertelisten erwartet `MEBUS_Set` die Originalnamen aus der Definition, z. B. `{"value":"auto"}`. Beim Bedienen der Variable in Symcon übersetzt das Modul selbst.
 
-Stand 2026-11-18 (Version 1.4): In Symcon 9.1 mit nachgestellten MQTT-Nachrichten geprüft (Empfang, Abfragen mit eigenem Intervall, Liste, Prüflauf mit Wert/leer/keine Antwort, Löschen, Schreiben bis 1.3). Noch nicht an einem echten Adapter geprüft. Die Übersetzungen sind eine eigene Übertragung der englischen Definitionen.
+Stand 2026-11-19 (Version 1.4): In Symcon 9.1 mit nachgestellten MQTT-Nachrichten geprüft (Empfang, Abfragen mit eigenem Intervall, Liste, Prüflauf mit Wert/leer/keine Antwort, Löschen, Schreiben bis 1.3). Der Abruf der Felddefinitionen per HTTP ist mit einem nachgestellten Adapter geprüft. Noch nicht an einem echten Adapter geprüft. Die Übersetzungen sind eine eigene Übertragung der englischen Definitionen.

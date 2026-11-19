@@ -66,7 +66,13 @@
             "Check running: %d of %d messages queried.": "Prüflauf läuft: %d von %d Nachrichten abgefragt.",
             "No check yet. The check queries every readable message once and records whether a value, an empty answer or nothing comes back.": "Noch kein Prüflauf. Der Prüflauf fragt jede lesbare Nachricht einmal ab und hält fest, ob ein Wert, eine leere Antwort oder nichts zurückkommt.",
             "Last check %s: %d with value, %d empty, %d without answer.": "Letzter Prüflauf %s: %d mit Wert, %d leer, %d ohne Antwort.",
-            "Add the German meaning in brackets to the variable names and use German status texts (Vaillant catalog); units are always set": "Deutsche Bedeutung in Klammern hinter den Variablennamen und deutsche Statustexte (Vaillant-Katalog); Einheiten gibt es immer"
+            "Add the German meaning in brackets to the variable names and use German status texts (Vaillant catalog); units are always set": "Deutsche Bedeutung in Klammern hinter den Variablennamen und deutsche Statustexte (Vaillant-Katalog); Einheiten gibt es immer",
+            "Address of the adapter (optional): units and limits are then read from the adapter itself": "Adresse des Adapters (optional): Einheiten und Grenzen kommen dann vom Adapter selbst",
+            "Check adapter address": "Adapter-Adresse prüfen",
+            "No valid adapter address entered (host name or IP address, optionally with port).": "Keine gültige Adapter-Adresse eingetragen (Hostname oder IP-Adresse, wahlweise mit Port).",
+            "The adapter does not answer on this address.": "Der Adapter antwortet unter dieser Adresse nicht.",
+            "The adapter answers. Units and limits are now read from it when a variable is created or set up again.": "Der Adapter antwortet. Einheiten und Grenzen kommen jetzt von ihm, wenn eine Variable angelegt oder neu eingerichtet wird.",
+            "Not written: %s is outside the range %s to %s that the adapter allows for field \"%s\".": "Nicht geschrieben: %s liegt außerhalb des Bereichs %s bis %s, den der Adapter für das Feld „%s“ erlaubt."
         }
     }
 }

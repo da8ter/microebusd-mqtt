@@ -14,10 +14,12 @@ declare(strict_types=1);
  * deutschen Namen, Einheiten und Wertelisten (Enums).
  */
 require_once __DIR__ . '/probe.php';
+require_once __DIR__ . '/definition.php';
 
 class MicroEbusdMQTT extends IPSModuleStrict
 {
     use MicroEbusdProbe;
+    use MicroEbusdDefinition;
 
     private const DATA_ID_TX = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}';
 
@@ -73,6 +75,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
         $this->RegisterPropertyString('PollMessages', '[]');
         $this->RegisterPropertyInteger('PollInterval', 60);
         $this->RegisterPropertyBoolean('WriteEnabled', false);
+        $this->RegisterPropertyString('AdapterHost', '');
 
         // Name => ['write' => bool, 'passive' => bool] aus den "found"-Antworten
         $this->RegisterAttributeString('Messages', '{}');
@@ -80,6 +83,8 @@ class MicroEbusdMQTT extends IPSModuleStrict
         $this->RegisterAttributeString('IdentMap', '{}');
         // Name => ['r' => value|null|none, 't' => Zeit der Abfrage] aus dem letzten Prüflauf
         $this->RegisterAttributeString('ProbeResult', '{}');
+        // Name => Felder laut HTTP-Schnittstelle des Adapters (Einheit, Grenzen, Schrittweite)
+        $this->RegisterAttributeString('Definitions', '{}');
 
         // Der Timer fragt nur ab, was nach seinem eigenen Intervall fällig ist; MEBUS_PollNow fragt alles.
         $this->RegisterTimer('Poll', 0, 'IPS_RequestAction($_IPS[\'TARGET\'], \'PollTick\', 0);');
@@ -267,6 +272,12 @@ class MicroEbusdMQTT extends IPSModuleStrict
             $ident = $this->makeIdent((string) $entry['name'], $single ? '' : $field);
             if ($ident === $Ident) {
                 $raw = $Value;
+                $min = $map[$ident]['min'] ?? null;
+                $max = $map[$ident]['max'] ?? null;
+                if (is_numeric($raw) && (($min !== null && $raw < $min) || ($max !== null && $raw > $max))) {
+                    echo sprintf($this->Translate('Not written: %s is outside the range %s to %s that the adapter allows for field "%s".'), (string) $raw, (string) ($min ?? '…'), (string) ($max ?? '…'), $field);
+                    return;
+                }
             } else {
                 $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
                 if (!is_int($vid) || $vid <= 0) {
@@ -401,6 +412,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
     {
         $map = $this->readJsonAttribute('IdentMap');
         $names = [];
+        $definitions = [];
         $count = 0;
         foreach ($map as $ident => $old) {
             $ident = (string) $ident;
@@ -411,7 +423,9 @@ class MicroEbusdMQTT extends IPSModuleStrict
             $fields = $old['fields'] ?? [$old['field'] ?? 'value'];
             $single = count($fields) === 1;
             $info = $this->catalogInfo((string) $old['name']);
-            $entry = $this->buildEntry((string) $old['name'], (string) ($old['field'] ?? 'value'), $fields, $single, GetValue($vid), $info);
+            // je Nachricht einmal frisch vom Adapter lesen, falls eine Adresse eingetragen ist
+            $definitions[(string) $old['name']] ??= $this->adapterDefinition((string) $old['name'], true) ?? [];
+            $entry = $this->buildEntry((string) $old['name'], (string) ($old['field'] ?? 'value'), $fields, $single, GetValue($vid), $info, $definitions[(string) $old['name']]);
             if ($this->setupVariable($ident, $entry, $vid, $old)) {
                 $map[$ident] = $entry;
                 $names[(string) $old['name']] = true;
@@ -463,6 +477,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
         $map = $this->readJsonAttribute('IdentMap');
         $mapChanged = false;
         $info = null;
+        $definition = null;
 
         foreach ($fields as $field => $value) {
             $field = (string) $field;
@@ -489,7 +504,8 @@ class MicroEbusdMQTT extends IPSModuleStrict
             $current = is_array($entry) && ($entry['v'] ?? 0) === self::META_VERSION && ($entry['lang'] ?? '') === $lang;
             if (!$exists || !$current) {
                 $info ??= $this->catalogInfo($name);
-                $newEntry = $this->buildEntry($name, $field, $fieldNames, $single, $value, $info);
+                $definition ??= $this->adapterDefinition($name) ?? [];
+                $newEntry = $this->buildEntry($name, $field, $fieldNames, $single, $value, $info, $definition);
                 if (!$this->setupVariable($ident, $newEntry, $exists ? $vid : 0, is_array($entry) ? $entry : null)) {
                     continue;
                 }
@@ -519,7 +535,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
     }
 
     /** Ermittelt Typ, Einheit, Werteliste und Bezeichnung einer Variable. */
-    private function buildEntry(string $name, string $field, array $fields, bool $single, mixed $value, array $info): array
+    private function buildEntry(string $name, string $field, array $fields, bool $single, mixed $value, array $info, array $definition = []): array
     {
         $meta = $info['fields'][strtolower($field)] ?? null; // micro-ebusd schreibt Feldnamen klein
         if ($meta === null && $single && count($info['fields']) === 1) {
@@ -531,7 +547,13 @@ class MicroEbusdMQTT extends IPSModuleStrict
         if ($enum !== '' && !isset($this->catalog()['enums'][$enum])) {
             $enum = '';
         }
-        $unit = (string) ($meta['u'] ?? '');
+        // Der Adapter kennt die Definition des angeschlossenen Geräts; seine Einheit geht dem Katalog vor.
+        $adapter = $definition[strtolower($field)] ?? null;
+        if ($adapter === null && $single && count($definition) === 1) {
+            $adapter = reset($definition);
+        }
+        $adapter = is_array($adapter) ? $adapter : [];
+        $unit = (string) ($adapter['u'] ?? $meta['u'] ?? '');
 
         if ($enum !== '') {
             $type = VARIABLETYPE_INTEGER;
@@ -558,7 +580,20 @@ class MicroEbusdMQTT extends IPSModuleStrict
             }
         }
 
-        return [
+        $digits = is_int($value) ? 0 : 2;
+        if ($type === VARIABLETYPE_FLOAT && isset($adapter['step'])) {
+            $digits = $this->digitsForStep($adapter['step']);
+        }
+        $limits = [];
+        if ($enum === '' && $type === VARIABLETYPE_FLOAT) {
+            foreach (['min', 'max'] as $key) {
+                if (isset($adapter[$key])) {
+                    $limits[$key] = $adapter[$key];
+                }
+            }
+        }
+
+        return $limits + [
             'v'       => self::META_VERSION,
             'lang'    => $lang,
             'name'    => $name,
@@ -567,11 +602,14 @@ class MicroEbusdMQTT extends IPSModuleStrict
             'caption' => $caption,
             'type'    => $type,
             'unit'    => $unit,
+            // Einheit, die die eigene Tabelle nicht kennt: so anzeigen, wie der Adapter sie nennt
+            'suffix'  => ($unit !== '' && !isset(self::UNITS[$unit])) ? ' ' . $unit : '',
             'enum'    => $enum,
             // Werteliste, die der Adapter als Zahl sendet (0/1): auch als Zahl zurückschreiben
             'num'     => $enum !== '' && (is_int($value) || is_float($value)),
-            // Zahlen ohne Einheit: ganze Zahlen ohne Nachkommastellen, bis ein Kommawert kommt
-            'd'       => is_int($value) ? 0 : 2
+            // Zahlen ohne Einheit: Nachkommastellen nach der Schrittweite des Adapters, sonst ganze
+            // Zahlen ohne Nachkommastellen, bis ein Kommawert kommt
+            'd'       => $digits
         ];
     }
 
