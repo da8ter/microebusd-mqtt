@@ -95,6 +95,13 @@
             "type": "CheckBox",
             "name": "HeatingPower",
             "caption": "Calculate heating power and current COP from volume flow and temperature spread (heat pump)"
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "HeatingPowerMax",
+            "caption": "Largest heating power of the heat pump (upper end of the scale in the visualization)",
+            "suffix": "W",
+            "minimum": 1000
         }
     ],
     "actions": [

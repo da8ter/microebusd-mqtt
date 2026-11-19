@@ -80,7 +80,8 @@
             "A device answers on this address (HTTP status %d), but not with the data of micro-ebusd.": "Unter dieser Adresse antwortet ein Gerät (HTTP-Status %d), aber nicht mit den Daten von micro-ebusd.",
             "Heating power (calculated)": "Heizleistung (berechnet)",
             "Calculate heating power and current COP from volume flow and temperature spread (heat pump)": "Heizleistung und momentane Leistungszahl aus Volumenstrom und Spreizung berechnen (Wärmepumpe)",
-            "Current COP (calculated)": "Momentane Leistungszahl (berechnet)"
+            "Current COP (calculated)": "Momentane Leistungszahl (berechnet)",
+            "Largest heating power of the heat pump (upper end of the scale in the visualization)": "Größte Heizleistung der Wärmepumpe (oberes Ende der Skala in der Visualisierung)"
         }
     }
 }

@@ -200,29 +200,43 @@ trait MicroEbusdEnergy
         return $values;
     }
 
-    /** Entfernt die berechneten Variablen, wenn die Berechnung abgeschaltet ist. */
+    /**
+     * Entfernt die berechneten Variablen, wenn die Berechnung abgeschaltet ist; sonst bekommen
+     * vorhandene die aktuelle Darstellung (die Obergrenze der Skala ist eine Einstellung).
+     */
     private function maintainHeatingPower(): void
     {
-        if (!$this->ReadPropertyBoolean('HeatingPower')) {
-            $this->maintainCalculated(self::$heatingPowerIdent, false);
-            $this->maintainCalculated(self::$currentCopIdent, false);
-        }
+        $keep = $this->ReadPropertyBoolean('HeatingPower');
+        $this->maintainCalculated(self::$heatingPowerIdent, $keep, true);
+        $this->maintainCalculated(self::$currentCopIdent, $keep, true);
     }
 
-    /** Legt eine berechnete Variable an bzw. entfernt sie. */
-    private function maintainCalculated(string $ident, bool $keep): void
+    /**
+     * Legt eine berechnete Variable an bzw. entfernt sie. Mit $refresh bekommt eine vorhandene die
+     * Darstellung neu; ohne wird sie nicht angefasst (der Aufruf kommt bei jedem neuen Wert).
+     */
+    private function maintainCalculated(string $ident, bool $keep, bool $refresh = false): void
     {
         $vid = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
-        if ($keep === (is_int($vid) && $vid > 0)) {
+        $exists = is_int($vid) && $vid > 0;
+        if ($keep ? ($exists && !$refresh) : !$exists) {
             return;
         }
-        [$caption, $suffix, $digits] = ($ident === self::$currentCopIdent)
-            ? ['Current COP (calculated)', '', 1]
-            : ['Heating power (calculated)', ' W', 0];
-        $this->MaintainVariable($ident, $this->Translate($caption), VARIABLETYPE_FLOAT, [
+        if ($keep && !$exists && $refresh) {
+            return; // angelegt wird erst mit dem ersten berechneten Wert
+        }
+        // MIN und MAX geben der Wertanzeige ihre Skala (Balken, Verlauf); ohne sie kann die
+        // Visualisierung den Wert nicht einordnen.
+        [$caption, $suffix, $digits, $max] = ($ident === self::$currentCopIdent)
+            ? ['Current COP (calculated)', '', 1, 10]
+            : ['Heating power (calculated)', ' W', 0, max(1000, $this->ReadPropertyInteger('HeatingPowerMax'))];
+        // einer vorhandenen Variable den Namen lassen: der Nutzer darf ihn ändern
+        $this->MaintainVariable($ident, $exists ? IPS_GetName($vid) : $this->Translate($caption), VARIABLETYPE_FLOAT, [
             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
             'SUFFIX'       => $suffix,
-            'DIGITS'       => $digits
+            'DIGITS'       => $digits,
+            'MIN'          => 0,
+            'MAX'          => $max
         ], 0, $keep);
     }
 }

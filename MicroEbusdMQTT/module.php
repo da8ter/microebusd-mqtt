@@ -81,6 +81,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
         $this->RegisterPropertyBoolean('WriteEnabled', false);
         $this->RegisterPropertyString('AdapterHost', '');
         $this->RegisterPropertyBoolean('HeatingPower', false);
+        $this->RegisterPropertyInteger('HeatingPowerMax', 10000);
 
         // Name => ['write' => bool, 'passive' => bool] aus den "found"-Antworten
         $this->RegisterAttributeString('Messages', '{}');
