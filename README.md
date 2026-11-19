@@ -17,7 +17,7 @@ Topics von micro-ebusd laut https://token.ebusd.eu/mqtt:
 | `<Basis>/<circuit>/<name>` | Wert als JSON, z. B. `{"value":35.56}` |
 | `<Basis>/<circuit>/<name>/get` | Wert anfordern |
 | `<Basis>/<circuit>/<name>/set` | Wert schreiben (JSON-Objekt) |
-| `<Basis>/<circuit>/list` | Nachrichtenliste anfordern; die Antwort kommt auf `<Basis>/<circuit>/any/found` |
+| `<Basis>/<circuit>/list` | Nachrichtenliste anfordern; die Antwort kommt seitenweise auf `<Basis>/<circuit>/any` (laut Dokumentation `…/any/found`) |
 
 ## Installation
 
@@ -45,6 +45,23 @@ micro-ebusd meldet auf eine Abfrage nur bei Erfolg einen Wert. Kennt das Gerät 
 
 Die Spalte **Letzter Wert** zeigt, wann eine Nachricht zuletzt mit Wert kam. Abgefragte Nachrichten ohne Wert seit dem Dreifachen ihres Intervalls sind als **veraltet** rot markiert. Rein passive Nachrichten (z. B. `Status01`) tauschen Regler und Wärmepumpe von selbst aus; sie lassen sich nicht abfragen und kommen in ihrem eigenen Takt.
 
+## Energiewerte
+
+Der Knopf „Energiewerte dieses Geräts in die Abfrageliste übernehmen“ trägt je Gerät die passenden Nachrichten mit einem sinnvollen Intervall ein (vorher die Nachrichtenliste anfordern, gespeichert wird mit „Änderungen übernehmen“). Es gibt drei Ebenen. Gemessen ist das an einer aroTHERM plus mit sensoCOMFORT 720 und Hydraulikstation; die Deutung stammt aus den Diskussionen des ebusd-Projekts (john30/ebusd-configuration #490 und #600).
+
+| Ebene | Gerät | Nachrichten | Eigenschaften |
+|---|---|---|---|
+| Wärmepumpe allein | `hmu` | `StatElectricEnergySum` (Strom gesamt), `…Hc` (Heizen), `…Hwc` (Warmwasser), `…Cool` (Kühlen), `StatEnvironmentEnergySum…` (Umweltenergie) | laufend aktuell, auf Wh genau |
+| Heizstab samt Standby | `vwz`, `vwzio` | `StatElectricEnergySum…` | laufend aktuell |
+| Ganze Anlage | Regler (`ctlv3`, `basv3` …) | `PrEnergySumHc`, `PrEnergySumHwc`, `…ThisMonth`, `…LastMonth`, `YieldTotal` | ganze kWh, der Regler aktualisiert nur um Mitternacht |
+
+- Die Statistik `Stat…` gilt immer für das abgefragte Gerät. Am Regler und am VR 71 ist sie nur deren Eigenverbrauch (Größenordnung 1 kWh im Monat) und sagt nichts über die Anlage.
+- Kennt die Wärmepumpe die Statistik nicht, nimmt der Knopf `TotalEnergyUsage`, `YieldHc` und `YieldHwc` (dieselben Zähler in ganzen kWh).
+- „Yield“ ist Umweltenergie, nicht abgegebene Wärme. Die Wärmemenge ist Umweltenergie plus Strom.
+- `PrFuelSum…` ist Brennstoff und bei einer Wärmepumpe 0.
+- Tageswerte für Strom gibt es in den Definitionen des Adapters nicht. Sind die Gesamtwerte als Zähler archiviert, liefert Symcon den Tagesverbrauch daraus.
+- Archivierung: Gesamtwerte als „Zähler“, Tages-, Monats- und Vormonatswerte als „Standard“.
+
 ## Update von Version 1.x
 
 Ab Version 1.3 braucht das Modul Symcon 8.1 oder neuer (`IPSModuleStrict`) und nutzt Darstellungen statt Variablenprofilen. Vorhandene Variablen werden beim nächsten empfangenen Wert automatisch umgestellt, sofort geht es mit dem Knopf „Vorhandene Variablen neu einrichten“. Der Knopf entfernt auch die nicht mehr benutzten `MEBUS.*`-Profile aus Version 1.x.
@@ -66,6 +83,7 @@ MEBUS_Get($id, 'RunDataFlowTemp');                    // einen Wert anfordern
 MEBUS_PollNow($id);                                   // alle Abfrage-Nachrichten anfordern
 MEBUS_RequestList($id);                               // Nachrichtenliste holen
 MEBUS_QueryKnown($id);                                // jede bekannte, aktiv lesbare Nachricht einmal abfragen
+MEBUS_AddEnergyPreset($id);                           // Energiewerte des Geräts in die Abfrageliste des offenen Formulars eintragen
 MEBUS_StartProbe($id);                                // Prüflauf: jede lesbare Nachricht abfragen und Antwort festhalten
 MEBUS_Set($id, 'HwcTempDesired', '{"value":50}');     // schreiben (nur mit Freigabe)
 MEBUS_ApplyTranslations($id);                         // Namen, Einheiten, Statustexte neu setzen
@@ -74,4 +92,4 @@ MEBUS_CheckAdapter($id);                              // prüft, ob der Adapter 
 
 Bei Wertelisten erwartet `MEBUS_Set` die Originalnamen aus der Definition, z. B. `{"value":"auto"}`. Beim Bedienen der Variable in Symcon übersetzt das Modul selbst.
 
-Stand 2026-11-19 (Version 1.4): In Symcon 9.1 mit nachgestellten MQTT-Nachrichten geprüft (Empfang, Abfragen mit eigenem Intervall, Liste, Prüflauf mit Wert/leer/keine Antwort, Löschen, Schreiben bis 1.3). Der Abruf der Felddefinitionen per HTTP ist mit einem nachgestellten Adapter geprüft. Noch nicht an einem echten Adapter geprüft. Die Übersetzungen sind eine eigene Übertragung der englischen Definitionen.
+Stand 2026-11-19 (Version 1.4): In Symcon 9.1 mit nachgestellten MQTT-Nachrichten geprüft (Empfang, Abfragen mit eigenem Intervall, Liste, Prüflauf mit Wert/leer/keine Antwort, Löschen, Schreiben bis 1.3). Der Abruf der Felddefinitionen per HTTP und die Adressprüfung sind mit einem nachgestellten Adapter geprüft. Die Energiewerte sind an einer echten Anlage gelesen und gegeneinander gerechnet; der Energie-Knopf selbst und die Abfrage mit `{}` sind nur nachgestellt geprüft. Die Übersetzungen sind eine eigene Übertragung der englischen Definitionen.

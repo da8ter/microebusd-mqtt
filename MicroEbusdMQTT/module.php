@@ -15,11 +15,13 @@ declare(strict_types=1);
  */
 require_once __DIR__ . '/probe.php';
 require_once __DIR__ . '/definition.php';
+require_once __DIR__ . '/energy.php';
 
 class MicroEbusdMQTT extends IPSModuleStrict
 {
     use MicroEbusdProbe;
     use MicroEbusdDefinition;
+    use MicroEbusdEnergy;
 
     private const DATA_ID_TX = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}';
 

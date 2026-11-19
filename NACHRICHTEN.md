@@ -37,7 +37,7 @@ Felder: Bei Nachrichten mit mehreren Werten steht jedes Feld mit Einheit bzw. We
 | `BuildingCircuitFlow` | Volumenstrom Heizkreis | l/h |
 | `FlowPressure` | Anlagendruck Heizkreis | bar |
 | `SourcePressure` | Druck Quellenkreis | bar |
-| `TotalEnergyUsage` | Energieverbrauch gesamt | kWh |
+| `TotalEnergyUsage` | Stromverbrauch Wärmepumpe gesamt | kWh |
 | `CompressorHours` | Verdichter Betriebsstunden | h |
 | `CompressorStarts` | Verdichter Starts |  |
 | `BuildingPumpHours` | Heizkreispumpe Betriebsstunden | h |
@@ -199,20 +199,20 @@ Felder: Bei Nachrichten mit mehreren Werten steht jedes Feld mit Einheit bzw. We
 | `Currenterror` | Aktuelle Fehler | Fehler 1 [–]; Fehler 2 [–]; Fehler 3 [–]; Fehler 4 [–]; Fehler 5 [–] |
 | `Errorhistory` | Fehlerhistorie | Status [–]; Uhrzeit [–]; Datum [–]; Fehler 1 [–] |
 | `Clearerrorhistory` | Fehlerhistorie löschen | no=Nein, yes=Ja |
-| `StatSolarEnergySum` | Solarertrag gesamt (Statistik) | kWh |
-| `StatSolarEnergySumHc` | Solarertrag Heizen (Statistik) | kWh |
-| `StatSolarEnergySumHwc` | Solarertrag Warmwasser (Statistik) | kWh |
-| `StatEnvironmentEnergySum` | Umweltenergie gesamt (Statistik) | kWh |
-| `StatEnvironmentEnergySumHc` | Umweltenergie Heizen (Statistik) | kWh |
-| `StatEnvironmentEnergySumHwc` | Umweltenergie Warmwasser (Statistik) | kWh |
-| `StatEnvironmentEnergySumCool` | Umweltenergie Kühlen (Statistik) | kWh |
-| `StatElectricEnergySum` | Stromverbrauch gesamt (Statistik) | kWh |
-| `StatElectricEnergySumHc` | Stromverbrauch Heizen (Statistik) | kWh |
-| `StatElectricEnergySumHwc` | Stromverbrauch Warmwasser (Statistik) | kWh |
-| `StatElectricEnergySumCool` | Stromverbrauch Kühlen (Statistik) | kWh |
-| `StatFuelSum` | Brennstoffverbrauch gesamt (Statistik) | kWh |
-| `StatFuelSumHc` | Brennstoffverbrauch Heizen (Statistik) | kWh |
-| `StatFuelSumHwc` | Brennstoffverbrauch Warmwasser (Statistik) | kWh |
+| `StatSolarEnergySum` | Solarertrag dieses Geräts gesamt | kWh |
+| `StatSolarEnergySumHc` | Solarertrag dieses Geräts Heizen | kWh |
+| `StatSolarEnergySumHwc` | Solarertrag dieses Geräts Warmwasser | kWh |
+| `StatEnvironmentEnergySum` | Umweltenergie dieses Geräts gesamt | kWh |
+| `StatEnvironmentEnergySumHc` | Umweltenergie dieses Geräts Heizen | kWh |
+| `StatEnvironmentEnergySumHwc` | Umweltenergie dieses Geräts Warmwasser | kWh |
+| `StatEnvironmentEnergySumCool` | Umweltenergie dieses Geräts Kühlen | kWh |
+| `StatElectricEnergySum` | Stromverbrauch dieses Geräts gesamt | kWh |
+| `StatElectricEnergySumHc` | Stromverbrauch dieses Geräts Heizen | kWh |
+| `StatElectricEnergySumHwc` | Stromverbrauch dieses Geräts Warmwasser | kWh |
+| `StatElectricEnergySumCool` | Stromverbrauch dieses Geräts Kühlen | kWh |
+| `StatFuelSum` | Brennstoffverbrauch dieses Geräts gesamt | kWh |
+| `StatFuelSumHc` | Brennstoffverbrauch dieses Geräts Heizen | kWh |
+| `StatFuelSumHwc` | Brennstoffverbrauch dieses Geräts Warmwasser | kWh |
 | `CompressorHc` | Verdichter Heizen (Laufzeit/Starts) | Laufzeit [min]; Starts [–] |
 | `CompressorHwc` | Verdichter Warmwasser (Laufzeit/Starts) | Laufzeit [min]; Starts [–] |
 | `CompressorBlocktime` | Verdichter-Sperrzeit | min |
@@ -233,20 +233,20 @@ Felder: Bei Nachrichten mit mehreren Werten steht jedes Feld mit Einheit bzw. We
 | `Currenterror` | Aktuelle Fehler | Fehler 1 [–]; Fehler 2 [–]; Fehler 3 [–]; Fehler 4 [–]; Fehler 5 [–] |
 | `Errorhistory` | Fehlerhistorie | Status [=]; Uhrzeit [–]; Datum [–]; Fehler 1 [–] |
 | `Clearerrorhistory` | Fehlerhistorie löschen | no=Nein, yes=Ja |
-| `StatSolarEnergySum` | Solarertrag gesamt (Statistik) | kWh |
-| `StatSolarEnergySumHc` | Solarertrag Heizen (Statistik) | kWh |
-| `StatSolarEnergySumHwc` | Solarertrag Warmwasser (Statistik) | kWh |
-| `StatEnvironmentEnergySum` | Umweltenergie gesamt (Statistik) | kWh |
-| `StatEnvironmentEnergySumHc` | Umweltenergie Heizen (Statistik) | kWh |
-| `StatEnvironmentEnergySumHwc` | Umweltenergie Warmwasser (Statistik) | kWh |
-| `StatEnvironmentEnergySumCool` | Umweltenergie Kühlen (Statistik) | kWh |
-| `StatElectricEnergySum` | Stromverbrauch gesamt (Statistik) | kWh |
-| `StatElectricEnergySumHc` | Stromverbrauch Heizen (Statistik) | kWh |
-| `StatElectricEnergySumHwc` | Stromverbrauch Warmwasser (Statistik) | kWh |
-| `StatElectricEnergySumCool` | Stromverbrauch Kühlen (Statistik) | kWh |
-| `StatFuelSum` | Brennstoffverbrauch gesamt (Statistik) | kWh |
-| `StatFuelSumHc` | Brennstoffverbrauch Heizen (Statistik) | kWh |
-| `StatFuelSumHwc` | Brennstoffverbrauch Warmwasser (Statistik) | kWh |
+| `StatSolarEnergySum` | Solarertrag dieses Geräts gesamt | kWh |
+| `StatSolarEnergySumHc` | Solarertrag dieses Geräts Heizen | kWh |
+| `StatSolarEnergySumHwc` | Solarertrag dieses Geräts Warmwasser | kWh |
+| `StatEnvironmentEnergySum` | Umweltenergie dieses Geräts gesamt | kWh |
+| `StatEnvironmentEnergySumHc` | Umweltenergie dieses Geräts Heizen | kWh |
+| `StatEnvironmentEnergySumHwc` | Umweltenergie dieses Geräts Warmwasser | kWh |
+| `StatEnvironmentEnergySumCool` | Umweltenergie dieses Geräts Kühlen | kWh |
+| `StatElectricEnergySum` | Stromverbrauch dieses Geräts gesamt | kWh |
+| `StatElectricEnergySumHc` | Stromverbrauch dieses Geräts Heizen | kWh |
+| `StatElectricEnergySumHwc` | Stromverbrauch dieses Geräts Warmwasser | kWh |
+| `StatElectricEnergySumCool` | Stromverbrauch dieses Geräts Kühlen | kWh |
+| `StatFuelSum` | Brennstoffverbrauch dieses Geräts gesamt | kWh |
+| `StatFuelSumHc` | Brennstoffverbrauch dieses Geräts Heizen | kWh |
+| `StatFuelSumHwc` | Brennstoffverbrauch dieses Geräts Warmwasser | kWh |
 | `ContinuousHeating` | Dauerheizen unterhalb Außentemperatur | °C |
 | `FrostOverrideTime` | Frostschutz-Verzögerung | h |
 | `GlobalSystemOff` | System komplett aus | no=Nein, yes=Ja |
@@ -282,18 +282,18 @@ Felder: Bei Nachrichten mit mehreren Werten steht jedes Feld mit Einheit bzw. We
 | `HwcFlowTempMax` | Maximale Vorlauftemperatur Warmwasser | °C |
 | `SystemFlowTemp` | Systemvorlauftemperatur | °C |
 | `MultiRelaySetting` | Multifunktionsrelais | circulation=Zirkulationspumpe, dryer=Entfeuchter, zone=Zonenventil, legiopump=Legionellenpumpe, not_connected=nicht angeschlossen, cool=Kühlen |
-| `PrFuelSumHcThisMonth` | Brennstoffverbrauch Heizen diesen Monat | kWh |
-| `PrEnergySumHcThisMonth` | Energieverbrauch Heizen diesen Monat | kWh |
-| `PrEnergySumHwcThisMonth` | Energieverbrauch Warmwasser diesen Monat | kWh |
-| `PrFuelSumHwcThisMonth` | Brennstoffverbrauch Warmwasser diesen Monat | kWh |
-| `PrFuelSumHcLastMonth` | Brennstoffverbrauch Heizen letzten Monat | kWh |
-| `PrEnergySumHcLastMonth` | Energieverbrauch Heizen letzten Monat | kWh |
-| `PrEnergySumHwcLastMonth` | Energieverbrauch Warmwasser letzten Monat | kWh |
-| `PrFuelSumHwcLastMonth` | Brennstoffverbrauch Warmwasser letzten Monat | kWh |
-| `PrFuelSumHc` | Brennstoffverbrauch Heizen gesamt | kWh |
-| `PrEnergySumHc` | Energieverbrauch Heizen gesamt | kWh |
-| `PrEnergySumHwc` | Energieverbrauch Warmwasser gesamt | kWh |
-| `PrFuelSumHwc` | Brennstoffverbrauch Warmwasser gesamt | kWh |
+| `PrFuelSumHcThisMonth` | Brennstoffverbrauch Anlage Heizen diesen Monat | kWh |
+| `PrEnergySumHcThisMonth` | Stromverbrauch Anlage Heizen diesen Monat | kWh |
+| `PrEnergySumHwcThisMonth` | Stromverbrauch Anlage Warmwasser diesen Monat | kWh |
+| `PrFuelSumHwcThisMonth` | Brennstoffverbrauch Anlage Warmwasser diesen Monat | kWh |
+| `PrFuelSumHcLastMonth` | Brennstoffverbrauch Anlage Heizen letzten Monat | kWh |
+| `PrEnergySumHcLastMonth` | Stromverbrauch Anlage Heizen letzten Monat | kWh |
+| `PrEnergySumHwcLastMonth` | Stromverbrauch Anlage Warmwasser letzten Monat | kWh |
+| `PrFuelSumHwcLastMonth` | Brennstoffverbrauch Anlage Warmwasser letzten Monat | kWh |
+| `PrFuelSumHc` | Brennstoffverbrauch Anlage Heizen gesamt | kWh |
+| `PrEnergySumHc` | Stromverbrauch Anlage Heizen gesamt | kWh |
+| `PrEnergySumHwc` | Stromverbrauch Anlage Warmwasser gesamt | kWh |
+| `PrFuelSumHwc` | Brennstoffverbrauch Anlage Warmwasser gesamt | kWh |
 | `MultiInputSetting` | Multifunktionseingang | not_connected=nicht angeschlossen, circulation=Zirkulation, photovoltaic=Photovoltaik, external_cooling=externes Kühlen |
 | `Installer1` | Fachhandwerker Name (Teil 1) |  |
 | `Installer2` | Fachhandwerker Name (Teil 2) |  |
@@ -658,20 +658,20 @@ Felder: Bei Nachrichten mit mehreren Werten steht jedes Feld mit Einheit bzw. We
 | `Currenterror` | Aktuelle Fehler | Fehler 1 [–]; Fehler 2 [–]; Fehler 3 [–]; Fehler 4 [–]; Fehler 5 [–] |
 | `Errorhistory` | Fehlerhistorie | Status [–]; Uhrzeit [–]; Datum [–]; Fehler 1 [–] |
 | `Clearerrorhistory` | Fehlerhistorie löschen | no=Nein, yes=Ja |
-| `StatSolarEnergySum` | Solarertrag gesamt (Statistik) | kWh |
-| `StatSolarEnergySumHc` | Solarertrag Heizen (Statistik) | kWh |
-| `StatSolarEnergySumHwc` | Solarertrag Warmwasser (Statistik) | kWh |
-| `StatEnvironmentEnergySum` | Umweltenergie gesamt (Statistik) | kWh |
-| `StatEnvironmentEnergySumHc` | Umweltenergie Heizen (Statistik) | kWh |
-| `StatEnvironmentEnergySumHwc` | Umweltenergie Warmwasser (Statistik) | kWh |
-| `StatEnvironmentEnergySumCool` | Umweltenergie Kühlen (Statistik) | kWh |
-| `StatElectricEnergySum` | Stromverbrauch gesamt (Statistik) | kWh |
-| `StatElectricEnergySumHc` | Stromverbrauch Heizen (Statistik) | kWh |
-| `StatElectricEnergySumHwc` | Stromverbrauch Warmwasser (Statistik) | kWh |
-| `StatElectricEnergySumCool` | Stromverbrauch Kühlen (Statistik) | kWh |
-| `StatFuelSum` | Brennstoffverbrauch gesamt (Statistik) | kWh |
-| `StatFuelSumHc` | Brennstoffverbrauch Heizen (Statistik) | kWh |
-| `StatFuelSumHwc` | Brennstoffverbrauch Warmwasser (Statistik) | kWh |
+| `StatSolarEnergySum` | Solarertrag dieses Geräts gesamt | kWh |
+| `StatSolarEnergySumHc` | Solarertrag dieses Geräts Heizen | kWh |
+| `StatSolarEnergySumHwc` | Solarertrag dieses Geräts Warmwasser | kWh |
+| `StatEnvironmentEnergySum` | Umweltenergie dieses Geräts gesamt | kWh |
+| `StatEnvironmentEnergySumHc` | Umweltenergie dieses Geräts Heizen | kWh |
+| `StatEnvironmentEnergySumHwc` | Umweltenergie dieses Geräts Warmwasser | kWh |
+| `StatEnvironmentEnergySumCool` | Umweltenergie dieses Geräts Kühlen | kWh |
+| `StatElectricEnergySum` | Stromverbrauch dieses Geräts gesamt | kWh |
+| `StatElectricEnergySumHc` | Stromverbrauch dieses Geräts Heizen | kWh |
+| `StatElectricEnergySumHwc` | Stromverbrauch dieses Geräts Warmwasser | kWh |
+| `StatElectricEnergySumCool` | Stromverbrauch dieses Geräts Kühlen | kWh |
+| `StatFuelSum` | Brennstoffverbrauch dieses Geräts gesamt | kWh |
+| `StatFuelSumHc` | Brennstoffverbrauch dieses Geräts Heizen | kWh |
+| `StatFuelSumHwc` | Brennstoffverbrauch dieses Geräts Warmwasser | kWh |
 | `SetActorState` | Relais schalten | Relais 1 [off=Aus, on=Ein]; Relais 2 [off=Aus, on=Ein]; Relais 3 [off=Aus, on=Ein]; Relais 4 [off=Aus, on=Ein]; Relais 5 [off=Aus, on=Ein]; Relais 6 [off=Aus, on=Ein]; Relais 7 [off=Aus, on=Ein]; Relais 8 [off=Aus, on=Ein]; Relais 9 [off=Aus, on=Ein]; Relais 10 [off=Aus, on=Ein]; Relais 11 [off=Aus, on=Ein]; Relais 12 [off=Aus, on=Ein] |
 | `Mc1Operation` | Mischerkreis 1 Betrieb | Status [off=Aus, on=Ein]; Vorlauf-Solltemperatur [°C]; Pumpe [off=Aus, on=Ein]; Mischer [%] |
 | `Mc2Operation` | Mischerkreis 2 Betrieb | Status [off=Aus, on=Ein]; Vorlauf-Solltemperatur [°C]; Pumpe [off=Aus, on=Ein]; Mischer [%] |
@@ -684,20 +684,20 @@ Felder: Bei Nachrichten mit mehreren Werten steht jedes Feld mit Einheit bzw. We
 | Name | Bedeutung | Einheit / Werte |
 |---|---|---|
 | `TestOutdoorTemp` | Außentemperatur (Testmenü) | °C |
-| `StatSolarEnergySum` | Solarertrag gesamt (Statistik) | kWh |
-| `StatSolarEnergySumHc` | Solarertrag Heizen (Statistik) | kWh |
-| `StatSolarEnergySumHwc` | Solarertrag Warmwasser (Statistik) | kWh |
-| `StatEnvironmentEnergySum` | Umweltenergie gesamt (Statistik) | kWh |
-| `StatEnvironmentEnergySumHc` | Umweltenergie Heizen (Statistik) | kWh |
-| `StatEnvironmentEnergySumHwc` | Umweltenergie Warmwasser (Statistik) | kWh |
-| `StatEnvironmentEnergySumCool` | Umweltenergie Kühlen (Statistik) | kWh |
-| `StatElectricEnergySum` | Stromverbrauch gesamt (Statistik) | kWh |
-| `StatElectricEnergySumHc` | Stromverbrauch Heizen (Statistik) | kWh |
-| `StatElectricEnergySumHwc` | Stromverbrauch Warmwasser (Statistik) | kWh |
-| `StatElectricEnergySumCool` | Stromverbrauch Kühlen (Statistik) | kWh |
-| `StatFuelSum` | Brennstoffverbrauch gesamt (Statistik) | kWh |
-| `StatFuelSumHc` | Brennstoffverbrauch Heizen (Statistik) | kWh |
-| `StatFuelSumHwc` | Brennstoffverbrauch Warmwasser (Statistik) | kWh |
+| `StatSolarEnergySum` | Solarertrag dieses Geräts gesamt | kWh |
+| `StatSolarEnergySumHc` | Solarertrag dieses Geräts Heizen | kWh |
+| `StatSolarEnergySumHwc` | Solarertrag dieses Geräts Warmwasser | kWh |
+| `StatEnvironmentEnergySum` | Umweltenergie dieses Geräts gesamt | kWh |
+| `StatEnvironmentEnergySumHc` | Umweltenergie dieses Geräts Heizen | kWh |
+| `StatEnvironmentEnergySumHwc` | Umweltenergie dieses Geräts Warmwasser | kWh |
+| `StatEnvironmentEnergySumCool` | Umweltenergie dieses Geräts Kühlen | kWh |
+| `StatElectricEnergySum` | Stromverbrauch dieses Geräts gesamt | kWh |
+| `StatElectricEnergySumHc` | Stromverbrauch dieses Geräts Heizen | kWh |
+| `StatElectricEnergySumHwc` | Stromverbrauch dieses Geräts Warmwasser | kWh |
+| `StatElectricEnergySumCool` | Stromverbrauch dieses Geräts Kühlen | kWh |
+| `StatFuelSum` | Brennstoffverbrauch dieses Geräts gesamt | kWh |
+| `StatFuelSumHc` | Brennstoffverbrauch dieses Geräts Heizen | kWh |
+| `StatFuelSumHwc` | Brennstoffverbrauch dieses Geräts Warmwasser | kWh |
 | `EnableTestThreeWayValve` | Testmenü freischalten: 3-Wege-Ventil |  |
 | `TestThreeWayValve` | 3-Wege-Ventil (Testmenü) | heating=Heizen, dhw=Warmwasser |
 | `EnableTestHwcTemp` | Testmenü freischalten: Warmwassertemperatur |  |

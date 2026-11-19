@@ -110,6 +110,11 @@
         },
         {
             "type": "Button",
+            "caption": "Add energy values of this device to the query list",
+            "onClick": "MEBUS_AddEnergyPreset($id);"
+        },
+        {
+            "type": "Button",
             "caption": "Set up existing variables again (names, units, status texts)",
             "onClick": "MEBUS_ApplyTranslations($id);"
         },
