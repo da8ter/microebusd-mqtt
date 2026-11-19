@@ -10,12 +10,14 @@ declare(strict_types=1);
  * z. B. ebusd/hmu/RunDataFlowTemp = {"value":35.56}.
  * Anfragen: <Basis>/<circuit>/<name>/get, .../set (JSON), <Basis>/<circuit>/list -> <Basis>/<circuit>/any/found
  *
- * vaillant.json: aus john30/ebusd-configuration (src/vaillant) erzeugter Katalog mit
+ * libs/vaillant.json: aus john30/ebusd-configuration (src/vaillant) erzeugter Katalog mit
  * deutschen Namen, Einheiten und Wertelisten (Enums).
  */
-require_once __DIR__ . '/probe.php';
-require_once __DIR__ . '/definition.php';
-require_once __DIR__ . '/energy.php';
+// Zusätzlicher Code und der Katalog liegen in libs/: der Modulordner selbst enthält nach der
+// Symcon-Struktur nur module.php, module.json, form.json und locale.json.
+require_once __DIR__ . '/../libs/MicroEbusdProbe.php';
+require_once __DIR__ . '/../libs/MicroEbusdDefinition.php';
+require_once __DIR__ . '/../libs/MicroEbusdEnergy.php';
 
 class MicroEbusdMQTT extends IPSModuleStrict
 {
@@ -1019,7 +1021,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
     private function catalog(): array
     {
         if (self::$catalogCache === null) {
-            $data = json_decode((string) @file_get_contents(__DIR__ . '/vaillant.json'), true);
+            $data = json_decode((string) @file_get_contents(__DIR__ . '/../libs/vaillant.json'), true);
             if (!is_array($data)) {
                 $data = [];
             }
