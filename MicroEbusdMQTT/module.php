@@ -429,7 +429,11 @@ class MicroEbusdMQTT extends IPSModuleStrict
             $info = $this->catalogInfo((string) $old['name']);
             // je Nachricht einmal frisch vom Adapter lesen, falls eine Adresse eingetragen ist
             $definitions[(string) $old['name']] ??= $this->adapterDefinition((string) $old['name'], true) ?? [];
-            $entry = $this->buildEntry((string) $old['name'], (string) ($old['field'] ?? 'value'), $fields, $single, GetValue($vid), $info, $definitions[(string) $old['name']]);
+            // GetValue liefert bei einer Float-Variable auch für 36 eine Kommazahl; die Stellenzahl
+            // deshalb aus dem bisherigen Eintrag übernehmen statt aus dem Wert neu zu raten.
+            $value = GetValue($vid);
+            $keepDigits = isset($old['d']) ? (int) $old['d'] : ((is_float($value) && floor($value) === $value) ? 0 : null);
+            $entry = $this->buildEntry((string) $old['name'], (string) ($old['field'] ?? 'value'), $fields, $single, $value, $info, $definitions[(string) $old['name']], $keepDigits);
             if ($this->setupVariable($ident, $entry, $vid, $old)) {
                 $map[$ident] = $entry;
                 $names[(string) $old['name']] = true;
@@ -539,7 +543,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
     }
 
     /** Ermittelt Typ, Einheit, Werteliste und Bezeichnung einer Variable. */
-    private function buildEntry(string $name, string $field, array $fields, bool $single, mixed $value, array $info, array $definition = []): array
+    private function buildEntry(string $name, string $field, array $fields, bool $single, mixed $value, array $info, array $definition = [], ?int $keepDigits = null): array
     {
         $meta = $info['fields'][strtolower($field)] ?? null; // micro-ebusd schreibt Feldnamen klein
         if ($meta === null && $single && count($info['fields']) === 1) {
@@ -584,7 +588,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
             }
         }
 
-        $digits = is_int($value) ? 0 : 2;
+        $digits = $keepDigits ?? (is_int($value) ? 0 : 2);
         if ($type === VARIABLETYPE_FLOAT && isset($adapter['step'])) {
             $digits = $this->digitsForStep($adapter['step']);
         }
