@@ -78,6 +78,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
         $this->RegisterPropertyInteger('PollInterval', 60);
         $this->RegisterPropertyBoolean('WriteEnabled', false);
         $this->RegisterPropertyString('AdapterHost', '');
+        $this->RegisterPropertyBoolean('HeatingPower', false);
 
         // Name => ['write' => bool, 'passive' => bool] aus den "found"-Antworten
         $this->RegisterAttributeString('Messages', '{}');
@@ -128,6 +129,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
         $this->SetTimerInterval('Poll', $active ? $interval * 1000 : 0);
 
         $this->refreshActions();
+        $this->maintainHeatingPower($this->ReadPropertyBoolean('HeatingPower') && $this->heatingPowerExists());
         $this->SetStatus(self::STATUS_ACTIVE);
     }
 
@@ -540,6 +542,7 @@ class MicroEbusdMQTT extends IPSModuleStrict
             $this->WriteAttributeString('IdentMap', (string) json_encode($map));
             $this->refreshActions();
         }
+        $this->updateHeatingPower($name);
     }
 
     /** Ermittelt Typ, Einheit, Werteliste und Bezeichnung einer Variable. */

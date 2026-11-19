@@ -77,7 +77,9 @@
             "Request the message list from the adapter first: only messages the device offers are added.": "Zuerst die Nachrichtenliste vom Adapter anfordern: Eingetragen wird nur, was das Gerät anbietet.",
             "There is no selection of energy values for this device. They are available for the heat pump (hmu), the controller (ctl…, bas…) and the indoor unit (vwz…).": "Für dieses Gerät gibt es keine Auswahl an Energiewerten. Es gibt sie für die Wärmepumpe (hmu), den Regler (ctl…, bas…) und die Inneneinheit (vwz…).",
             "%d energy values added to the query list, %d are not offered by this device. Save with \"Apply changes\".": "%d Energiewerte in die Abfrageliste eingetragen, %d bietet dieses Gerät nicht an. Mit „Änderungen übernehmen“ speichern.",
-            "A device answers on this address (HTTP status %d), but not with the data of micro-ebusd.": "Unter dieser Adresse antwortet ein Gerät (HTTP-Status %d), aber nicht mit den Daten von micro-ebusd."
+            "A device answers on this address (HTTP status %d), but not with the data of micro-ebusd.": "Unter dieser Adresse antwortet ein Gerät (HTTP-Status %d), aber nicht mit den Daten von micro-ebusd.",
+            "Calculate the heating power from volume flow and temperature spread (heat pump)": "Heizleistung aus Volumenstrom und Spreizung berechnen (Wärmepumpe)",
+            "Heating power (calculated)": "Heizleistung (berechnet)"
         }
     }
 }

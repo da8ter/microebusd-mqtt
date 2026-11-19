@@ -90,6 +90,11 @@
             "type": "ValidationTextBox",
             "name": "AdapterHost",
             "caption": "Address of the adapter (optional): units and limits are then read from the adapter itself"
+        },
+        {
+            "type": "CheckBox",
+            "name": "HeatingPower",
+            "caption": "Calculate the heating power from volume flow and temperature spread (heat pump)"
         }
     ],
     "actions": [
