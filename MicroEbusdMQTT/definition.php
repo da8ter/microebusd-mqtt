@@ -17,7 +17,12 @@ trait MicroEbusdDefinition
     /** Nach einem Fehlschlag so lange keinen neuen Versuch: sonst hinge jeder Empfang am Timeout. */
     private static int $httpPauseSeconds = 300;
 
-    /** Prüft die eingetragene Adresse und meldet, ob der Adapter antwortet. */
+    /**
+     * Prüft die eingetragene Adresse und meldet, ob der Adapter antwortet. Gelesen wird die Definition
+     * einer Nachricht dieser Instanz aus dem Zwischenspeicher (from=0, kein Busverkehr), nicht die
+     * Nachrichtenliste: deren Abruf ohne Seitenangabe hat laut einem Nutzerbericht eine Firmware vom
+     * 01.11.2026 neu starten lassen (john30/ebusd-esp32 #198).
+     */
     public function CheckAdapter(): void
     {
         if ($this->adapterHost() === '') {
@@ -25,12 +30,22 @@ trait MicroEbusdDefinition
             return;
         }
         $this->SetBuffer('HttpPause', '');
-        $data = $this->httpGetJson('/api/v1/ebus/list');
-        if ($data === null) {
-            echo $this->Translate('The adapter does not answer on this address.');
+        $circuit = $this->circuit();
+        $names = array_merge($this->pollNames(), array_map('strval', array_keys($this->readJsonAttribute('Messages'))));
+        $path = ($circuit !== '' && $names !== [])
+            ? '/api/v1/ebus/' . rawurlencode($circuit) . '/' . rawurlencode($names[0]) . '/get?from=0'
+            : '/api/v1/ebus/datetime/get?from=0'; // Beispiel aus der Dokumentation des Adapters
+        $status = 0;
+        $data = $this->httpGetJson($path, $status);
+        if ($data !== null) {
+            echo $this->Translate('The adapter answers. Units and limits are now read from it when a variable is created or set up again.');
             return;
         }
-        echo $this->Translate('The adapter answers. Units and limits are now read from it when a variable is created or set up again.');
+        // Der Fehlschlag einer Prüfung von Hand soll den Abruf im Betrieb nicht fünf Minuten sperren.
+        $this->SetBuffer('HttpPause', '');
+        echo ($status > 0)
+            ? sprintf($this->Translate('A device answers on this address (HTTP status %d), but not with the data of micro-ebusd.'), $status)
+            : $this->Translate('The adapter does not answer on this address.');
     }
 
     /**
@@ -78,7 +93,7 @@ trait MicroEbusdDefinition
     }
 
     /** Liest eine JSON-Antwort des Adapters; null bei jedem Fehlschlag (dann Pause, siehe oben). */
-    private function httpGetJson(string $path): ?array
+    private function httpGetJson(string $path, int &$status = 0): ?array
     {
         $url = 'http://' . $this->adapterHost() . $path;
         $handle = curl_init($url);
@@ -91,7 +106,7 @@ trait MicroEbusdDefinition
             CURLOPT_HTTPHEADER        => ['Accept: application/json']
         ]);
         $body = curl_exec($handle);
-        $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+        $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE); // 0 = keine Verbindung
         $error = curl_error($handle);
         curl_close($handle);
 

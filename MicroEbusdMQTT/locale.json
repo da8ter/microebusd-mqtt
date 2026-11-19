@@ -72,7 +72,8 @@
             "No valid adapter address entered (host name or IP address, optionally with port).": "Keine gültige Adapter-Adresse eingetragen (Hostname oder IP-Adresse, wahlweise mit Port).",
             "The adapter does not answer on this address.": "Der Adapter antwortet unter dieser Adresse nicht.",
             "The adapter answers. Units and limits are now read from it when a variable is created or set up again.": "Der Adapter antwortet. Einheiten und Grenzen kommen jetzt von ihm, wenn eine Variable angelegt oder neu eingerichtet wird.",
-            "Not written: %s is outside the range %s to %s that the adapter allows for field \"%s\".": "Nicht geschrieben: %s liegt außerhalb des Bereichs %s bis %s, den der Adapter für das Feld „%s“ erlaubt."
+            "Not written: %s is outside the range %s to %s that the adapter allows for field \"%s\".": "Nicht geschrieben: %s liegt außerhalb des Bereichs %s bis %s, den der Adapter für das Feld „%s“ erlaubt.",
+            "A device answers on this address (HTTP status %d), but not with the data of micro-ebusd.": "Unter dieser Adresse antwortet ein Gerät (HTTP-Status %d), aber nicht mit den Daten von micro-ebusd."
         }
     }
 }
