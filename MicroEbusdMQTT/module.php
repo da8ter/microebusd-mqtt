@@ -380,7 +380,9 @@ class MicroEbusdMQTT extends IPSModuleStrict
         if ($circuit === '' || $Name === '') {
             return false;
         }
-        return $this->publish($this->baseTopic() . '/' . $circuit . '/' . $Name . '/get', '');
+        // Leeres JSON-Objekt statt leerer Nutzlast: die leere meldet der Adapter in seinem Log als
+        // „invalid json“ (john30/ebusd-esp32 #158), beantwortet wird beides.
+        return $this->publish($this->baseTopic() . '/' . $circuit . '/' . $Name . '/get', '{}');
     }
 
     /** Schreibt eine Nachricht, z. B. MEBUS_Set(12345, 'HwcTempDesired', '{"value":50}'). */
